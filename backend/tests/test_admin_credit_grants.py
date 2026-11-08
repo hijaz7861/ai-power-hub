@@ -47,6 +47,8 @@ def test_admin_credit_grant_is_audited_and_idempotent(client, test_db):
         assert len(entries) == 1
         assert entries[0].entry_type == "grant"
         assert entries[0].amount == 500
+        actor = db.scalar(select(User).where(User.email == "credit-admin@example.com"))
+        assert entries[0].actor_user_id == actor.id
 
 
 def test_credit_grant_idempotency_key_cannot_be_reused(client, test_db):
