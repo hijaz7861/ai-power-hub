@@ -102,7 +102,7 @@ class PaymentOrder(Base):
     provider: Mapped[str] = mapped_column(String(24), default="safepay", nullable=False)
     status: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
-    provider_tracker: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True, index=True)
+    provider_tracker: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
