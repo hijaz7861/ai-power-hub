@@ -65,7 +65,7 @@ python -m alembic upgrade head
 
 ## Status
 
-**Current phase:** Backend foundation and first domain primitives.
+**Current phase:** Backend foundation, first domain primitives, and initial frontend dashboard.
 
 **Not yet implemented:** live AI provider adapters, production payment gateway, subscription enforcement, admin RBAC, frontend, email verification, password recovery, rate limiting, production deployment, and operational monitoring.
 
