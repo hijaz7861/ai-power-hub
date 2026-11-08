@@ -126,3 +126,43 @@ class SafepayClient:
             tracker=tracker,
             checkout_url=self.checkout_base + "/checkout/pay?" + query,
         )
+
+
+    async def create_checkout_url(
+        self,
+        *,
+        tracker: str,
+        public_app_url: str,
+    ) -> str:
+        if not isinstance(tracker, str) or not tracker.startswith("track_") or len(tracker) > 128:
+            raise ValueError("tracker is invalid")
+        if not public_app_url.startswith("https://"):
+            raise ValueError("PUBLIC_APP_URL must use HTTPS")
+        headers = {"X-SFPY-MERCHANT-SECRET": self.secret_key}
+        try:
+            async with httpx.AsyncClient(
+                base_url=self.api_base,
+                timeout=self.timeout_seconds,
+                transport=self.transport,
+            ) as client:
+                response = await client.post("/client/passport/v1/token", headers=headers)
+                response.raise_for_status()
+                data = response.json()["data"]
+                if not isinstance(data, str) or not data:
+                    raise ValueError
+        except httpx.HTTPStatusError as exc:
+            raise SafepayError(f"Safepay returned HTTP {exc.response.status_code}") from None
+        except (httpx.TimeoutException, httpx.TransportError):
+            raise SafepayError("Safepay is temporarily unavailable") from None
+        except (ValueError, KeyError, TypeError):
+            raise SafepayError("Safepay returned an invalid response") from None
+
+        query = urlencode({
+            "tracker": tracker,
+            "tbt": data,
+            "environment": self.environment,
+            "source": "hosted",
+            "redirect_url": public_app_url.rstrip("/") + "/payments/return",
+            "cancel_url": public_app_url.rstrip("/") + "/payments/cancel",
+        })
+        return self.checkout_base + "/checkout/pay?" + query
