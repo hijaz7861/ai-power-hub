@@ -1,4 +1,4 @@
-import PaymentReturnClient from "../../components/payment-return-client";
+import PaymentReturnClient from "../../../components/payment-return-client";
 
 export default async function PaymentReturnPage({
   searchParams,
