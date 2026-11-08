@@ -59,3 +59,19 @@ usage metering and invoice reconciliation are confirmed.
 Backend CI exercises role denial, admin supplier-offer creation/listing, contract
 activation gating, retail-price preview, provider adapter mocks and migrations.
 Live supplier credentials and commercial contracts are external prerequisites.
+
+
+## Manual credit adjustments
+
+Administrator endpoint:
+
+- POST /api/v1/admin/credits/grant
+
+The request includes a target user, positive integer credit amount, unique idempotency
+key and mandatory reason. The ledger records the acting administrator's user ID.
+Repeated requests with the same key and identical operation do not grant twice;
+reusing the key for a different operation is rejected.
+
+This is only an audited manual support/promotional adjustment. It is not a payment
+gateway, payment verification, customer top-up, or proof that money was received.
+Never use this endpoint to mark a customer payment as verified.
