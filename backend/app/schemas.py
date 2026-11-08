@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 class RegisterRequest(BaseModel):
@@ -89,3 +90,12 @@ class AdminCreditGrantResponse(BaseModel):
     granted_credits: int
     balance: int
     entry_type: str = "grant"
+
+
+class CreditLedgerEntryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    amount: int
+    entry_type: str
+    description: str
+    created_at: datetime
