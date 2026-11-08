@@ -64,12 +64,21 @@ def calculate_retail_price(inputs: PricingInputs) -> PriceQuote:
     retail_price = _ceil_money(
         Decimal(total_cost) * Decimal(10_000) / Decimal(retained_bps)
     )
-    payment_fee = _ceil_money(Decimal(retail_price * inputs.payment_fee_bps) / Decimal(10_000))
-    tax = _ceil_money(Decimal(retail_price * inputs.tax_bps) / Decimal(10_000))
-    projected_profit = retail_price - total_cost - payment_fee - tax
+    # Fee/tax rounding can consume a minor unit. Raise the price until the
+    # realised contribution margin (after those round-ups) meets the target.
+    while True:
+        payment_fee = _ceil_money(Decimal(retail_price * inputs.payment_fee_bps) / Decimal(10_000))
+        tax = _ceil_money(Decimal(retail_price * inputs.tax_bps) / Decimal(10_000))
+        projected_profit = retail_price - total_cost - payment_fee - tax
+        required_profit = _ceil_money(
+            Decimal(retail_price * inputs.target_margin_bps) / Decimal(10_000)
+        )
+        if projected_profit >= required_profit:
+            break
+        retail_price += 1
     margin_bps = int(
         (Decimal(projected_profit) * Decimal(10_000) / Decimal(retail_price))
-        .quantize(Decimal("1"), rounding=ROUND_CEILING)
+        .quantize(Decimal("1"), rounding="ROUND_FLOOR")
     )
     return PriceQuote(
         total_cost=total_cost,
