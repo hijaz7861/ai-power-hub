@@ -53,3 +53,25 @@ class SupplierOfferResponse(BaseModel):
     contract_status: str
     is_active: bool
     created_by: int
+
+
+class SupplierOfferQuoteRequest(BaseModel):
+    contributor_payout_minor_units: int = Field(default=0, ge=0, le=10**12)
+    infrastructure_cost_minor_units: int = Field(default=0, ge=0, le=10**12)
+    support_cost_minor_units: int = Field(default=0, ge=0, le=10**12)
+    target_margin_bps: int = Field(default=1500, ge=0, le=9999)
+    payment_fee_bps: int = Field(default=0, ge=0, le=9999)
+    tax_bps: int = Field(default=0, ge=0, le=9999)
+
+
+class SupplierOfferQuoteResponse(BaseModel):
+    supplier_offer_id: int
+    currency: str
+    billing_unit: str
+    wholesale_cost_minor_units: int
+    total_cost_minor_units: int
+    retail_price_minor_units: int
+    payment_fee_minor_units: int
+    tax_minor_units: int
+    projected_profit_minor_units: int
+    projected_margin_bps: int
