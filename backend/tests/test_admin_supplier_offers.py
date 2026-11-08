@@ -63,3 +63,37 @@ def test_supplier_offer_cannot_be_activated_without_verified_contract(client, te
     }
     response = client.post("/api/v1/admin/supplier-offers", json=payload, headers=headers)
     assert response.status_code == 422
+
+
+def test_admin_can_preview_retail_price_from_wholesale_offer(client, test_db):
+    headers = register_and_login(client)
+    with test_db() as db:
+        user = db.scalar(select(User).where(User.email == "admin-test@example.com"))
+        user.role = "admin"
+        db.commit()
+    offer_payload = {
+        "supplier_name": "Wholesale AI",
+        "supplier_code": "wholesale-ai",
+        "service_type": "ai_api",
+        "provider_code": "openai",
+        "model_code": "sample-model",
+        "billing_unit": "per_1k_input_tokens",
+        "currency": "PKR",
+        "wholesale_cost_minor_units": 1000,
+        "contract_status": "verified",
+        "is_active": True,
+    }
+    created = client.post("/api/v1/admin/supplier-offers", json=offer_payload, headers=headers)
+    assert created.status_code == 201
+    offer_id = created.json()["id"]
+    quote = client.post(
+        f"/api/v1/admin/supplier-offers/{offer_id}/quote",
+        json={"target_margin_bps": 2000, "payment_fee_bps": 200},
+        headers=headers,
+    )
+    assert quote.status_code == 200
+    result = quote.json()
+    assert result["wholesale_cost_minor_units"] == 1000
+    assert result["retail_price_minor_units"] > result["wholesale_cost_minor_units"]
+    assert result["projected_margin_bps"] >= 2000
+    assert result["currency"] == "PKR"
