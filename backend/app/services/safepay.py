@@ -112,8 +112,8 @@ class SafepayClient:
         except (ValueError, KeyError, TypeError):
             raise SafepayError("Safepay returned an invalid response") from None
 
-        redirect_url = public_app_url.rstrip("/") + "/payments/return"
-        cancel_url = public_app_url.rstrip("/") + "/payments/cancel"
+        redirect_url = public_app_url.rstrip("/") + "/payments/return?" + urlencode({"reference": order_reference})
+        cancel_url = public_app_url.rstrip("/") + "/payments/cancel?" + urlencode({"reference": order_reference})
         query = urlencode({
             "tracker": tracker,
             "tbt": time_based_token,
@@ -132,10 +132,13 @@ class SafepayClient:
         self,
         *,
         tracker: str,
+        order_reference: str,
         public_app_url: str,
     ) -> str:
         if not isinstance(tracker, str) or not tracker.startswith("track_") or len(tracker) > 128:
             raise ValueError("tracker is invalid")
+        if not order_reference or len(order_reference) > 64:
+            raise ValueError("order_reference is invalid")
         if not public_app_url.startswith("https://"):
             raise ValueError("PUBLIC_APP_URL must use HTTPS")
         headers = {"X-SFPY-MERCHANT-SECRET": self.secret_key}
@@ -162,7 +165,7 @@ class SafepayClient:
             "tbt": data,
             "environment": self.environment,
             "source": "hosted",
-            "redirect_url": public_app_url.rstrip("/") + "/payments/return",
-            "cancel_url": public_app_url.rstrip("/") + "/payments/cancel",
+            "redirect_url": public_app_url.rstrip("/") + "/payments/return?" + urlencode({"reference": order_reference}),
+            "cancel_url": public_app_url.rstrip("/") + "/payments/cancel?" + urlencode({"reference": order_reference}),
         })
         return self.checkout_base + "/checkout/pay?" + query
