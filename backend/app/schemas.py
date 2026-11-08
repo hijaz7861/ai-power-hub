@@ -113,3 +113,28 @@ class PaymentWebhookEventResponse(BaseModel):
     processing_status: str
     received_at: datetime
     processed_at: datetime | None
+
+
+class PaymentTopupCreate(BaseModel):
+    amount_pkr: int = Field(ge=100, le=100000)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class PaymentTopupResponse(BaseModel):
+    reference: str
+    amount_pkr: int
+    amount_minor_units: int
+    credits_to_receive: int
+    currency: str
+    status: str
+    checkout_url: str | None = None
+
+
+class PaymentOrderStatusResponse(BaseModel):
+    reference: str
+    amount_pkr: int
+    amount_minor_units: int
+    currency: str
+    status: str
+    created_at: datetime
+    paid_at: datetime | None
