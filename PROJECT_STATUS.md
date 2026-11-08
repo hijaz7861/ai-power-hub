@@ -16,6 +16,7 @@ Last updated: 2026-11-08
 - [x] Authenticated credit-balance endpoint
 - [x] Credit debit domain primitive with idempotency key
 - [x] Provider configuration catalogue with explicit non-operational status
+- [x] Safe async OpenAI-compatible provider adapter with HTTPS-only endpoint, bounded timeout, sanitised errors and mocked transport tests
 - [x] Integer-safe wholesale-to-retail pricing domain engine (provider, contributor, infrastructure and support costs; fees, tax and target margin)
 - [x] Pricing validation tests and AI Power Network commercial architecture document
 - [x] Alembic initial schema migration
@@ -40,7 +41,7 @@ Last updated: 2026-11-08
 - [ ] Credit grant/purchase workflow with audit controls
 - [ ] Subscription plans and billing state machine
 - [ ] Payment verification workflow
-- [ ] Provider adapter interface and first live provider
+- [ ] Live provider credentials, allowed model catalogue, real provider call and invoice/cost reconciliation (adapter currently tested only with mocked HTTP responses)
 - [ ] Persisted supplier offers, model catalogue and cost/credit pricing table
 - [ ] Admin-only pricing policy and supplier contract management
 - [ ] AI request orchestration and usage settlement
