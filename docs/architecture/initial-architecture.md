@@ -26,10 +26,12 @@
 - POST /api/v1/auth/login
 - GET /api/v1/auth/me (Bearer token)
 - GET /api/v1/credits/balance (Bearer token)
+- GET /api/v1/credits/ledger (Bearer token; current-user scoped)
 - GET /api/v1/providers
 - GET /api/v1/admin/supplier-offers (administrator)
 - POST /api/v1/admin/supplier-offers (administrator)
 - POST /api/v1/admin/supplier-offers/{offer_id}/quote (administrator)
+- POST /api/v1/admin/credits/grant (administrator; audited manual adjustment)
 
 ## Database and migrations
 
@@ -43,8 +45,8 @@
 - The provider adapter is implemented and mock-tested, but no live external AI service call or supplier resale agreement has been verified.
 - No credit purchase or grant endpoint is exposed.
 - Payment processing and subscription enforcement are not implemented.
-- Credit debit is not yet connected to AI request execution.
-- Advanced RBAC, administrator management UI, rate limiting, email verification, password reset, and refresh-token rotation remain future work.
+- Credit debit and manual grant primitives are not yet connected to metered AI request execution or verified customer payments.
+- Advanced RBAC, administrator management UI, rate limiting, email verification, password reset, refresh-token rotation, and browser end-to-end tests remain future work.
 - No production deployment or production security audit has been completed.
 
 ## Local development
