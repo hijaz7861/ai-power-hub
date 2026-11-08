@@ -38,8 +38,8 @@ def test_safepay_checkout_creates_tracker_and_short_lived_token():
     assert query["tracker"] == ["track_test_001"]
     assert query["tbt"] == ["tbt_test_token"]
     assert query["environment"] == ["sandbox"]
-    assert query["redirect_url"] == ["https://app.example.test/payments/return"]
-    assert query["cancel_url"] == ["https://app.example.test/payments/cancel"]
+    assert query["redirect_url"] == ["https://app.example.test/payments/return?reference=order-test-001"]
+    assert query["cancel_url"] == ["https://app.example.test/payments/cancel?reference=order-test-001"]
     setup = next(request for request in seen if request.url.path == "/order/payments/v3/")
     assert setup.headers["x-sfpy-merchant-secret"] == "test-secret-key"
     assert b'"amount":10000' in setup.content
