@@ -99,3 +99,17 @@ class CreditLedgerEntryResponse(BaseModel):
     entry_type: str
     description: str
     created_at: datetime
+
+
+class PaymentWebhookEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    event_token: str
+    event_type: str
+    tracker_token: str | None
+    amount_minor_units: int | None
+    currency: str | None
+    payload_sha256: str
+    processing_status: str
+    received_at: datetime
+    processed_at: datetime | None
