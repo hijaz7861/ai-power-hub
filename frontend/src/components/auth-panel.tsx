@@ -24,6 +24,9 @@ export default function AuthPanel() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [topupAmount, setTopupAmount] = useState("100");
+  const [topupError, setTopupError] = useState("");
+  const [topupBusy, setTopupBusy] = useState(false);
 
   const refreshAccount = useCallback(async () => {
     const response = await fetch("/api/account", { cache: "no-store" });
@@ -72,6 +75,34 @@ export default function AuthPanel() {
     }
   }
 
+  async function startTopup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setTopupBusy(true);
+    setTopupError("");
+    try {
+      const amount = Number(topupAmount);
+      if (!Number.isInteger(amount) || amount < 100 || amount > 100000) {
+        throw new Error("Top-up must be between PKR 100 and PKR 100,000.");
+      }
+      const response = await fetch("/api/payments/topups", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ amount_pkr: amount, idempotency_key: crypto.randomUUID() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.detail || "Could not start checkout");
+      if (result.checkout_url) {
+        window.location.assign(result.checkout_url);
+        return;
+      }
+      await refreshAccount();
+    } catch (cause) {
+      setTopupError(cause instanceof Error ? cause.message : "Top-up request failed");
+    } finally {
+      setTopupBusy(false);
+    }
+  }
+
   async function logout() {
     setBusy(true);
     try {
@@ -92,8 +123,16 @@ export default function AuthPanel() {
           <span className="account-avatar">{account.user.email.slice(0, 1).toUpperCase()}</span>
           <div><strong>{account.user.email}</strong><small>Signed in · secure server-managed session</small></div>
         </div>
-        <div className="account-credit"><span>Available credits</span><strong>{account.balance.balance.toLocaleString()}</strong></div>
+        <div className="account-credit"><span>Available credits</span><strong>{account.balance.balance.toLocaleString()}</strong><small>≈ PKR {(account.balance.balance / 100).toFixed(2)}</small></div>
         <button className="account-button secondary" onClick={logout} disabled={busy}>Sign out</button>
+        <form className="topup-form" onSubmit={startTopup}>
+          <label>Top up credits (PKR)
+            <input type="number" min="100" max="100000" step="1" value={topupAmount} onChange={(event) => setTopupAmount(event.target.value)} />
+          </label>
+          <button className="account-button" type="submit" disabled={topupBusy}>{topupBusy ? "Preparing checkout…" : "Continue to secure payment"}</button>
+          <small>Minimum PKR 100 · 1 credit = PKR 0.01 · payment confirmation is webhook-based</small>
+          {topupError ? <p className="auth-error" role="alert">{topupError}</p> : null}
+        </form>
         {account.ledger.length > 0 ? (
           <div className="ledger-preview">
             <strong>Recent credit activity</strong>
