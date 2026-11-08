@@ -115,6 +115,7 @@ def admin_grant_credits(
             amount=payload.amount,
             idempotency_key=payload.idempotency_key,
             description=payload.reason,
+            actor_user_id=_.id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
