@@ -2,59 +2,58 @@
 
 Last updated: 2026-11-08
 
-## Current milestone: Initial platform foundation + commercial pricing primitive
+## Current milestone: Commercial supplier registry and pricing controls
 
-### Completed in this branch (implementation present; CI/build checks still pending)
-- [x] Public GitHub repository and main branch
-- [x] FastAPI application foundation
-- [x] Root, health, and provisional readiness endpoints
-- [x] SQLAlchemy user, credit-account, and ledger models
-- [x] User registration and login endpoints
+### Implemented in feat/backend-foundation
+- [x] FastAPI application, root, health, and provisional readiness endpoints
+- [x] SQLAlchemy users, credit accounts, and credit ledger entries
+- [x] Registration, login, authenticated profile, and short-lived bearer tokens
 - [x] Scrypt password hashing
-- [x] Short-lived signed bearer access tokens
-- [x] Authenticated user profile endpoint
-- [x] Authenticated credit-balance endpoint
-- [x] Credit debit domain primitive with idempotency key
+- [x] Credit debit domain primitive with idempotency and overdraw protection
 - [x] Provider configuration catalogue with explicit non-operational status
-- [x] Safe async OpenAI-compatible provider adapter with HTTPS-only endpoint, bounded timeout, sanitised errors and mocked transport tests
-- [x] Integer-safe wholesale-to-retail pricing domain engine (provider, contributor, infrastructure and support costs; fees, tax and target margin)
-- [x] Pricing validation tests and AI Power Network commercial architecture document
-- [x] Alembic initial schema migration
-- [x] Initial Next.js + TypeScript dashboard
-- [x] Backend and frontend GitHub Actions workflows
+- [x] HTTPS-only async OpenAI-compatible adapter with bounded timeout and sanitised failures
+- [x] Mock-transport tests for provider request/response handling; no live supplier call claimed
+- [x] Integer-safe wholesale-to-retail pricing engine using minor currency units and basis points
+- [x] Supplier wholesale-offer persistence and Alembic migration
+- [x] Customer/admin role field and admin-only API authorization
+- [x] Explicit CLI-only bootstrap that promotes an existing registered account; no public role-promotion endpoint
+- [x] Admin-only supplier offer create/list endpoints
+- [x] Contract gate prevents an offer being activated unless an administrator marks its commercial contract verified
+- [x] Admin-only retail-price preview calculated from supplier wholesale cost and configurable cost/margin inputs
+- [x] Next.js + TypeScript dashboard and CI workflows
+- [x] Commercial architecture and project documentation
 
-### Verification
-- [x] Local isolated backend test mirror: 12 tests passed
-- [x] Alembic upgrade smoke test
-- [x] Alembic schema consistency check
-- [x] Alembic autogeneration template smoke test
-- [x] GitHub Actions Backend CI run #106: 26 tests passed; Alembic migration validation passed
-- [x] GitHub Actions Frontend CI run #19: TypeScript type check and production build passed
+### Latest verified CI
+- [x] Backend CI #131: 30 tests passed; Alembic upgrade validation passed
+- [x] Frontend CI #28: TypeScript type check and production build passed
 - [ ] Termux-native install and runtime confirmed
-- [ ] Termux-native install and runtime confirmed
+- [ ] PostgreSQL integration tests and backup/restore drill
+- [ ] Live provider call, supplier permission and invoice reconciliation
 
-### Remaining engineering milestones
-- [ ] PostgreSQL deployment configuration and integration tests
-- [ ] Production-grade migration and backup/restore validation
-- [ ] Rate limiting and abuse controls
-- [ ] Admin RBAC and secure bootstrap procedure
-- [ ] Credit grant/purchase workflow with audit controls
-- [ ] Subscription plans and billing state machine
-- [ ] Payment verification workflow
-- [ ] Live provider credentials, allowed model catalogue, real provider call and invoice/cost reconciliation (adapter currently tested only with mocked HTTP responses)
-- [ ] Persisted supplier offers, model catalogue and cost/credit pricing table
-- [ ] Admin-only pricing policy and supplier contract management
-- [ ] AI request orchestration and usage settlement
-- [ ] Frontend authentication and protected dashboard
-- [ ] Chat UI and conversation persistence
-- [ ] Image/audio/video integrations
-- [ ] Security review and end-to-end tests
-- [ ] Production deployment and monitoring
+### Remaining milestones
+- [ ] PostgreSQL deployment configuration, integration tests and backup/restore validation
+- [ ] Rate limiting, abuse controls and request-size/time limits
+- [ ] Admin management UI, audit events and admin account lifecycle controls
+- [ ] Credit purchase/grant workflow with auditable settlement
+- [ ] Payment provider selection and verified payment webhook lifecycle
+- [ ] Subscription plans, renewals, cancellation and failed-payment state machine
+- [ ] Live supplier credentials, model allowlists, live calls and supplier invoice/cost reconciliation
+- [ ] Persisted retail price policies and customer-visible service catalogue
+- [ ] Metered AI orchestration, usage recording, reserve/capture/refund and idempotent settlement
+- [ ] Frontend authentication, protected dashboard and chat UI
+- [ ] Image/audio/video provider integrations
+- [ ] Contributor node agent, opt-in consent, sandbox, quotas, proof of work and payout settlement
+- [ ] Security review, privacy/retention review and end-to-end tests
+- [ ] Production deployment, monitoring, incident response and restore validation
 
-## Important status rules
+## Operational and commercial limitations
 
-- A provider is not operational until a real API call is verified.
+- A provider is not operational until a real API call, usage accounting and supplier-cost reconciliation are verified.
+- A configured API key is not evidence of resale rights. Commercial distribution permission must be confirmed separately.
+- contract_status=verified is an administrator assertion based on an external agreement; the application does not independently validate legal documents.
+- Supplier offer management and quote preview are admin-only. There is no public customer quote or unmetered AI execution endpoint.
+- The CLI bootstrap only promotes an existing account and requires BOOTSTRAP_ADMIN_ENABLED=true plus BOOTSTRAP_ADMIN_EMAIL; disable the flag after use.
 - A payment is not verified by an uploaded screenshot alone.
-- A credit balance must never be increased through an unauthenticated public endpoint.
-- Production database schemas must be migrated, not created automatically at startup.
-- No production-readiness claim is made until security, reliability, cost controls, and deployment checks pass.
+- Credit balances must never be increased through an unauthenticated public endpoint.
+- Production schema changes must use reviewed migrations; production startup must not create tables automatically.
+- Passing CI does not establish production readiness. No production-readiness or revenue-generation claim is made.
