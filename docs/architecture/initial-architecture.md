@@ -44,7 +44,7 @@
 - No credit purchase or grant endpoint is exposed.
 - Payment processing and subscription enforcement are not implemented.
 - Credit debit is not yet connected to AI request execution.
-- Rate limiting, email verification, password reset, refresh-token rotation, and administrative RBAC remain future work.
+- Advanced RBAC, administrator management UI, rate limiting, email verification, password reset, and refresh-token rotation remain future work.
 - No production deployment or production security audit has been completed.
 
 ## Local development
