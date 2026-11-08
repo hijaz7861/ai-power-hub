@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AuthPanel from "@/components/auth-panel";
+import AuthPanel from "../components/auth-panel";
 
 type Provider = {
   id: string;
