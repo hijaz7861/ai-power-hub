@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.api.auth import require_admin
 from backend.app.core.database import get_db
-from backend.app.models import SupplierOffer, User
+from backend.app.models import PaymentWebhookEvent, SupplierOffer, User
 from backend.app.schemas import (
     SupplierOfferCreate,
     SupplierOfferResponse,
@@ -13,6 +13,7 @@ from backend.app.schemas import (
     SupplierOfferQuoteResponse,
     AdminCreditGrantRequest,
     AdminCreditGrantResponse,
+    PaymentWebhookEventResponse,
 )
 from backend.app.services.pricing import PricingInputs, calculate_retail_price
 from backend.app.services.credits import grant_credits
@@ -124,3 +125,16 @@ def admin_grant_credits(
         granted_credits=payload.amount,
         balance=balance,
     )
+
+
+@router.get("/payment-events", response_model=list[PaymentWebhookEventResponse])
+def list_payment_events(
+    limit: int = 50,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[PaymentWebhookEvent]:
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="limit must be between 1 and 100")
+    return list(db.scalars(
+        select(PaymentWebhookEvent).order_by(PaymentWebhookEvent.id.desc()).limit(limit)
+    ).all())
