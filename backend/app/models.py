@@ -12,6 +12,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(256))
     is_active: Mapped[bool] = mapped_column(default=True)
+    role: Mapped[str] = mapped_column(String(24), default="customer", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     credit_account: Mapped["CreditAccount"] = relationship(back_populates="user", cascade="all, delete-orphan", uselist=False)
 
@@ -33,3 +34,27 @@ class CreditLedger(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     description: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class SupplierOffer(Base):
+    """Admin-managed wholesale offer; not proof of a signed resale agreement."""
+    __tablename__ = "supplier_offers"
+    __table_args__ = (
+        UniqueConstraint("supplier_code", "provider_code", "model_code", "billing_unit",
+                         name="uq_supplier_offer_identity"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    supplier_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    supplier_code: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    service_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    provider_code: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    model_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    billing_unit: Mapped[str] = mapped_column(String(40), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="PKR")
+    wholesale_cost_minor_units: Mapped[int] = mapped_column(Integer, nullable=False)
+    contract_status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
+    is_active: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
