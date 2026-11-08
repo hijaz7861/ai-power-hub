@@ -1,0 +1,98 @@
+import httpx
+import pytest
+
+from backend.app.services.provider_adapters import (
+    ChatMessage,
+    OpenAICompatibleChatAdapter,
+    ProviderError,
+)
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_adapter_parses_response_and_usage():
+    seen = {}
+
+    async def handler(request):
+        seen["authorization"] = request.headers["authorization"]
+        seen["payload"] = await request.aread()
+        return httpx.Response(200, json={
+            "id": "req_test_123",
+            "choices": [{"message": {"role": "assistant", "content": "Hello from the provider"}}],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 5},
+        })
+
+    adapter = OpenAICompatibleChatAdapter(
+        provider="test-provider",
+        base_url="https://api.example.test/v1",
+        api_key="test-secret",
+        transport=httpx.MockTransport(handler),
+    )
+    result = await adapter.complete(
+        model="test-model",
+        messages=[ChatMessage(role="user", content="Hello")],
+        max_tokens=50,
+    )
+    assert result.content == "Hello from the provider"
+    assert result.request_id == "req_test_123"
+    assert result.prompt_tokens == 12
+    assert result.completion_tokens == 5
+    assert seen["authorization"] == "Bearer test-secret"
+    assert b'"model":"test-model"' in seen["payload"]
+
+
+@pytest.mark.asyncio
+async def test_provider_http_error_is_sanitised():
+    async def handler(request):
+        return httpx.Response(401, json={"error": "secret provider diagnostic"})
+
+    adapter = OpenAICompatibleChatAdapter(
+        provider="test-provider",
+        base_url="https://api.example.test/v1",
+        api_key="test-secret",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ProviderError, match="HTTP 401") as error:
+        await adapter.complete(model="test-model", messages=[ChatMessage("user", "Hi")])
+    assert "secret provider diagnostic" not in str(error.value)
+    assert "test-secret" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_provider_malformed_response_is_rejected():
+    async def handler(request):
+        return httpx.Response(200, json={"choices": []})
+
+    adapter = OpenAICompatibleChatAdapter(
+        provider="test-provider",
+        base_url="https://api.example.test/v1",
+        api_key="test-secret",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ProviderError, match="unsupported response shape"):
+        await adapter.complete(model="test-model", messages=[ChatMessage("user", "Hi")])
+
+
+@pytest.mark.parametrize("base_url", ["http://api.example.test/v1", ""])
+def test_adapter_requires_https(base_url):
+    with pytest.raises(ValueError, match="HTTPS"):
+        OpenAICompatibleChatAdapter(
+            provider="test-provider",
+            base_url=base_url,
+            api_key="test-secret",
+        )
+
+
+@pytest.mark.asyncio
+async def test_invalid_request_is_rejected_before_network_call():
+    adapter = OpenAICompatibleChatAdapter(
+        provider="test-provider",
+        base_url="https://api.example.test/v1",
+        api_key="test-secret",
+        transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+    )
+    with pytest.raises(ValueError, match="max_tokens"):
+        await adapter.complete(
+            model="test-model",
+            messages=[ChatMessage("user", "Hi")],
+            max_tokens=0,
+        )
