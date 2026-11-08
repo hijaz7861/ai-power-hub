@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from backend.app.api.auth import require_admin
 from backend.app.core.database import get_db
 from backend.app.models import SupplierOffer, User
-from backend.app.schemas import SupplierOfferCreate, SupplierOfferResponse
+from backend.app.schemas import (\n    SupplierOfferCreate, SupplierOfferResponse,\n    SupplierOfferQuoteRequest, SupplierOfferQuoteResponse,\n)\nfrom backend.app.services.pricing import PricingInputs, calculate_retail_price
 
 router = APIRouter(prefix="/api/v1/admin", tags=["administration"])
 
@@ -46,3 +46,42 @@ def create_supplier_offer(
         ) from None
     db.refresh(offer)
     return offer
+
+
+@router.post(
+    "/supplier-offers/{offer_id}/quote",
+    response_model=SupplierOfferQuoteResponse,
+)
+def quote_supplier_offer(
+    offer_id: int,
+    payload: SupplierOfferQuoteRequest,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> SupplierOfferQuoteResponse:
+    offer = db.get(SupplierOffer, offer_id)
+    if offer is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Supplier offer not found")
+    try:
+        quote = calculate_retail_price(PricingInputs(
+            provider_cost=offer.wholesale_cost_minor_units,
+            contributor_payout=payload.contributor_payout_minor_units,
+            infrastructure_cost=payload.infrastructure_cost_minor_units,
+            support_cost=payload.support_cost_minor_units,
+            target_margin_bps=payload.target_margin_bps,
+            payment_fee_bps=payload.payment_fee_bps,
+            tax_bps=payload.tax_bps,
+        ))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
+    return SupplierOfferQuoteResponse(
+        supplier_offer_id=offer.id,
+        currency=offer.currency,
+        billing_unit=offer.billing_unit,
+        wholesale_cost_minor_units=quote.provider_cost,
+        total_cost_minor_units=quote.total_cost,
+        retail_price_minor_units=quote.retail_price,
+        payment_fee_minor_units=quote.payment_fee,
+        tax_minor_units=quote.tax,
+        projected_profit_minor_units=quote.projected_profit,
+        projected_margin_bps=quote.projected_margin_bps,
+    )
