@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     anthropic_api_key: str = ""
     mistral_api_key: str = ""
+    safepay_webhook_secret: str = ""
 
     def validate_runtime(self) -> None:
         if self.app_env.lower() == "production":
