@@ -19,7 +19,10 @@ The proposed entry plan starts at **PKR 100/month**. Credit limits and plan econ
 - Registration, login, and bearer-token profile endpoint.
 - Authenticated credit balance.
 - Credit debit domain primitive with idempotency protection.
-- Provider configuration catalogue (no live provider adapters yet).
+- Provider configuration catalogue with explicit non-operational status until a live call is verified.
+- HTTPS-only OpenAI-compatible async adapter with mocked HTTP tests; no live supplier credentials are included.
+- Admin role protection and a CLI-only bootstrap command for promoting an existing account.
+- Admin-only supplier wholesale-offer registry, commercial-contract activation gate, and retail-price preview using the integer-safe pricing engine.
 - Alembic initial database migration.
 - Automated backend tests and GitHub Actions workflow.
 
@@ -67,6 +70,6 @@ python -m alembic upgrade head
 
 **Current phase:** Backend foundation, first domain primitives, and initial frontend dashboard.
 
-**Not yet implemented:** live AI provider adapters, production payment gateway, subscription enforcement, admin RBAC, frontend, email verification, password recovery, rate limiting, production deployment, and operational monitoring.
+**Not yet implemented:** verified live supplier/API calls and resale agreements, payment gateway and credit purchase settlement, subscription enforcement, customer-facing chat execution, frontend authentication, email verification, password recovery, rate limiting, PostgreSQL production rollout, production deployment, and operational monitoring.
 
 Only verified functionality will be marked operational.
