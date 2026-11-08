@@ -107,6 +107,9 @@ class PaymentWebhookEventResponse(BaseModel):
     event_token: str
     event_type: str
     tracker_token: str | None
+    order_reference: str | None
+    provider_state: str | None
+    payment_order_id: int | None
     amount_minor_units: int | None
     currency: str | None
     payload_sha256: str
