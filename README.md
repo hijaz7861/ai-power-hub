@@ -25,6 +25,7 @@ The proposed entry plan starts at **PKR 100/month**. Credit limits and plan econ
 - Admin-only supplier wholesale-offer registry, commercial-contract activation gate, and retail-price preview using the integer-safe pricing engine.
 - Admin-only manual credit adjustments with idempotency and an actor-linked audit ledger.
 - Authenticated customer credit history endpoint scoped to the signed-in account.
+- Safepay signed webhook inbox using raw-body HMAC-SHA512 verification, event deduplication and minimal event metadata storage; this does not yet create payment orders or credit customer accounts.
 - Frontend registration/login/logout through Next.js server routes and HttpOnly, SameSite=Strict session cookies; account panel displays balance and recent credit activity.
 - Alembic initial database migration.
 - Automated backend tests and GitHub Actions workflow.
