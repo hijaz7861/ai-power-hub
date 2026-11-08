@@ -75,3 +75,17 @@ class SupplierOfferQuoteResponse(BaseModel):
     tax_minor_units: int
     projected_profit_minor_units: int
     projected_margin_bps: int
+
+
+class AdminCreditGrantRequest(BaseModel):
+    user_id: int = Field(gt=0)
+    amount: int = Field(gt=0, le=10**9)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+    reason: str = Field(min_length=4, max_length=255)
+
+
+class AdminCreditGrantResponse(BaseModel):
+    user_id: int
+    granted_credits: int
+    balance: int
+    entry_type: str = "grant"
