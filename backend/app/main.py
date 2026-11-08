@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from backend.app import models  # noqa: F401
 from backend.app.api.auth import router as auth_router
+from backend.app.api.admin import router as admin_router
 from backend.app.api.credits import router as credits_router
 from backend.app.api.health import router as health_router
 from backend.app.api.providers import router as providers_router
@@ -25,6 +26,7 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(credits_router)
 app.include_router(providers_router)
+app.include_router(admin_router)
 
 @app.get("/", tags=["system"])
 async def root() -> dict[str, str]:
