@@ -21,7 +21,7 @@ def test_price_covers_all_costs_and_target_margin():
 
 
 def test_zero_fee_and_zero_margin_is_cost_price():
-    quote = calculate_retail_price(PricingInputs(provider_cost=100))
+    quote = calculate_retail_price(PricingInputs(provider_cost=100, target_margin_bps=0))
     assert quote.retail_price == 100
     assert quote.projected_profit == 0
 
