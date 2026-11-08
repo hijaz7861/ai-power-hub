@@ -27,9 +27,9 @@ Last updated: 2026-11-08
 - [x] Alembic upgrade smoke test
 - [x] Alembic schema consistency check
 - [x] Alembic autogeneration template smoke test
-- [ ] Latest GitHub Actions run independently confirmed
-- [ ] Previous backend CI run passed 19 tests and failed one new pricing test because its fixture inherited the 15% default margin; fixture corrected on the current branch, awaiting a fresh CI result
-- [ ] Frontend typecheck and production build confirmed
+- [x] GitHub Actions Backend CI run #97: 20 tests passed; Alembic migration validation passed
+- [x] GitHub Actions Frontend CI run #15: TypeScript type check and production build passed
+- [ ] Termux-native install and runtime confirmed
 - [ ] Termux-native install and runtime confirmed
 
 ### Remaining engineering milestones
