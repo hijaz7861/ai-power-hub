@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     mistral_api_key: str = ""
     safepay_webhook_secret: str = ""
+    safepay_api_key: str = ""
+    safepay_secret_key: str = ""
+    safepay_environment: str = "sandbox"
+    public_app_url: str = ""
 
     def validate_runtime(self) -> None:
         if self.app_env.lower() == "production":
