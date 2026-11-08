@@ -87,6 +87,7 @@ async def create_credit_topup(
                 raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from None
             return _response(order, checkout_url)
     else:
+        client = _client()
         order = PaymentOrder(
             reference=uuid4().hex,
             user_id=user.id,
@@ -126,7 +127,6 @@ async def create_credit_topup(
             return _response(order, checkout_url)
         db.refresh(order)
 
-    client = _client()
     try:
         checkout = await client.create_checkout(
             amount_minor_units=order.amount_minor_units,
