@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
 from backend.app.core.database import get_db
-from backend.app.models import PaymentWebhookEvent
+from backend.app.models import CreditAccount, CreditLedger, PaymentOrder, PaymentWebhookEvent
+from backend.app.models import utc_now
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["payment webhooks"])
 MAX_WEBHOOK_BYTES = 1024 * 1024
@@ -89,6 +90,15 @@ async def receive_safepay_webhook(
     ):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid currency")
     currency = currency.upper() if currency else None
+    metadata = data.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid payment metadata")
+    order_reference = metadata.get("order_id")
+    if order_reference is not None and (not isinstance(order_reference, str) or len(order_reference) > 64):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid order reference")
+    provider_state = data.get("state")
+    if provider_state is not None and (not isinstance(provider_state, str) or len(provider_state) > 60):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid provider state")
 
     payload_hash = hashlib.sha256(raw_body).hexdigest()
     existing = db.scalar(
@@ -106,9 +116,57 @@ async def receive_safepay_webhook(
         amount_minor_units=amount,
         currency=currency,
         payload_sha256=payload_hash,
+        order_reference=order_reference,
+        provider_state=provider_state,
         processing_status="received",
     )
     db.add(record)
+
+    matched_order = None
+    if event_type in {"payment.succeeded", "payment.failed", "payment.refunded"}:
+        if tracker:
+            matched_order = db.scalar(select(PaymentOrder).where(PaymentOrder.provider_tracker == tracker))
+        if matched_order is None and order_reference:
+            matched_order = db.scalar(select(PaymentOrder).where(PaymentOrder.reference == order_reference))
+        if matched_order is not None:
+            record.payment_order_id = matched_order.id
+            if event_type == "payment.succeeded":
+                tracker_matches = matched_order.provider_tracker in (None, tracker)
+                amount_matches = amount == matched_order.amount_minor_units
+                currency_matches = currency == matched_order.currency
+                state_matches = provider_state == "TRACKER_ENDED"
+                if not (tracker_matches and amount_matches and currency_matches and state_matches):
+                    record.processing_status = "mismatch"
+                elif matched_order.status == "succeeded":
+                    record.processing_status = "duplicate_payment_event"
+                else:
+                    account = db.scalar(
+                        select(CreditAccount)
+                        .where(CreditAccount.user_id == matched_order.user_id)
+                        .with_for_update()
+                    )
+                    if account is None:
+                        db.rollback()
+                        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment account is unavailable")
+                    account.balance += matched_order.amount_minor_units
+                    db.add(CreditLedger(
+                        user_id=matched_order.user_id,
+                        amount=matched_order.amount_minor_units,
+                        entry_type="payment",
+                        idempotency_key="safepay-order:" + matched_order.reference,
+                        description="Verified Safepay credit top-up",
+                    ))
+                    matched_order.provider_tracker = tracker or matched_order.provider_tracker
+                    matched_order.status = "succeeded"
+                    matched_order.paid_at = utc_now()
+                    record.processing_status = "processed"
+            elif event_type == "payment.failed":
+                record.processing_status = "failed_attempt"
+            elif event_type == "payment.refunded":
+                record.processing_status = "refund_review"
+        else:
+            record.processing_status = "unmatched"
+
     try:
         db.commit()
     except IntegrityError:
