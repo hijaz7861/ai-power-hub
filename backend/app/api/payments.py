@@ -114,6 +114,7 @@ async def create_credit_topup(
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Idempotency key was used with a different amount")
             if order.status != "pending" or not order.provider_tracker:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment order is not ready for retry")
+            client = _client()
             try:
                 checkout_url = await client.create_checkout_url(
                     tracker=order.provider_tracker,
