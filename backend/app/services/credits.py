@@ -1,4 +1,5 @@
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from backend.app.models import CreditAccount, CreditLedger
 
@@ -11,13 +12,14 @@ def get_balance(db: Session, user_id: int) -> int:
 
 def debit_credits(db: Session, *, user_id: int, amount: int, idempotency_key: str, description: str = "") -> int:
     """Debit integer credits atomically; repeat keys do not charge twice."""
-    if amount <= 0:
+    if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0:
         raise ValueError("amount must be a positive integer")
+    idempotency_key = idempotency_key.strip() if isinstance(idempotency_key, str) else ""
     if not idempotency_key or len(idempotency_key) > 128:
         raise ValueError("a valid idempotency_key is required")
     existing = db.scalar(select(CreditLedger).where(CreditLedger.idempotency_key == idempotency_key))
     if existing is not None:
-        if existing.user_id != user_id or existing.amount != -amount:
+        if existing.user_id != user_id or existing.amount != -amount or existing.entry_type != "debit":
             raise ValueError("idempotency_key was already used for a different operation")
         return get_balance(db, user_id)
     result = db.execute(
@@ -30,7 +32,14 @@ def debit_credits(db: Session, *, user_id: int, amount: int, idempotency_key: st
         raise InsufficientCreditsError("insufficient credits")
     db.add(CreditLedger(user_id=user_id, amount=-amount, entry_type="debit",
                         idempotency_key=idempotency_key, description=description[:255]))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(select(CreditLedger).where(CreditLedger.idempotency_key == idempotency_key))
+        if existing is not None and existing.user_id == user_id and existing.amount == -amount and existing.entry_type == "debit":
+            return get_balance(db, user_id)
+        raise ValueError("idempotency_key was already used for a different operation") from None
     return get_balance(db, user_id)
 
 
@@ -49,6 +58,7 @@ def grant_credits(
     """
     if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0:
         raise ValueError("amount must be a positive integer")
+    idempotency_key = idempotency_key.strip() if isinstance(idempotency_key, str) else ""
     if not idempotency_key or len(idempotency_key) > 128:
         raise ValueError("a valid idempotency_key is required")
     reason = description.strip()
@@ -82,5 +92,12 @@ def grant_credits(
         idempotency_key=idempotency_key,
         description=reason,
     ))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(select(CreditLedger).where(CreditLedger.idempotency_key == idempotency_key))
+        if existing is not None and existing.user_id == user_id and existing.amount == amount and existing.entry_type == "grant":
+            return get_balance(db, user_id)
+        raise ValueError("idempotency_key was already used for a different operation") from None
     return get_balance(db, user_id)
