@@ -30,9 +30,20 @@ async def receive_safepay_webhook(
             detail="Safepay webhook is not configured",
         )
 
-    raw_body = await request.body()
-    if len(raw_body) > MAX_WEBHOOK_BYTES:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Webhook body too large")
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_WEBHOOK_BYTES:
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Webhook body too large")
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Content-Length") from None
+
+    body_buffer = bytearray()
+    async for chunk in request.stream():
+        if len(body_buffer) + len(chunk) > MAX_WEBHOOK_BYTES:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Webhook body too large")
+        body_buffer.extend(chunk)
+    raw_body = bytes(body_buffer)
     if signature is None or not SIGNATURE_PATTERN.fullmatch(signature.strip()):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
