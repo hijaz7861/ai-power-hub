@@ -50,6 +50,7 @@ def grant_credits(
     amount: int,
     idempotency_key: str,
     description: str,
+    actor_user_id: int,
 ) -> int:
     """Apply an audited administrative credit adjustment exactly once.
 
@@ -91,6 +92,7 @@ def grant_credits(
         entry_type="grant",
         idempotency_key=idempotency_key,
         description=reason,
+        actor_user_id=actor_user_id,
     ))
     try:
         db.commit()
