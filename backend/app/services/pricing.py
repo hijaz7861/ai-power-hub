@@ -4,7 +4,7 @@ All money values are integer minor units (for PKR, paisa). Rates are basis
 points: 100 = 1%. No floating-point arithmetic is used for money.
 """
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_CEILING
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 
 
 @dataclass(frozen=True)
@@ -78,7 +78,7 @@ def calculate_retail_price(inputs: PricingInputs) -> PriceQuote:
         retail_price += 1
     margin_bps = int(
         (Decimal(projected_profit) * Decimal(10_000) / Decimal(retail_price))
-        .quantize(Decimal("1"), rounding="ROUND_FLOOR")
+        .quantize(Decimal("1"), rounding=ROUND_FLOOR)
     )
     return PriceQuote(
         total_cost=total_cost,
