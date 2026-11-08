@@ -139,7 +139,8 @@ async def receive_safepay_webhook(
                 amount_matches = amount == matched_order.amount_minor_units
                 currency_matches = currency == matched_order.currency
                 state_matches = provider_state == "TRACKER_ENDED"
-                if not (tracker_matches and amount_matches and currency_matches and state_matches):
+                reference_matches = order_reference in (None, matched_order.reference)
+                if not (tracker_matches and amount_matches and currency_matches and state_matches and reference_matches):
                     record.processing_status = "mismatch"
                 elif matched_order.status == "succeeded":
                     record.processing_status = "duplicate_payment_event"
