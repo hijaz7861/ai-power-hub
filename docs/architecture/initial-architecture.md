@@ -10,7 +10,10 @@
 - Registration, login, and authenticated profile endpoint.
 - Authenticated credit-balance endpoint.
 - Integer-credit debit service with conditional balance update and idempotency key.
-- Provider configuration catalogue that explicitly reports adapters as not implemented.
+- Provider configuration catalogue that explicitly reports integrations as non-operational until verified.
+- HTTPS-only async OpenAI-compatible provider adapter with mocked transport tests.
+- Administrator role authorization and CLI-only bootstrap for an existing account.
+- Admin-only supplier wholesale-offer registry, commercial contract activation gate, and retail-price quote preview.
 - Alembic migration environment and initial schema migration.
 - Isolated SQLite tests and GitHub Actions CI.
 
@@ -24,6 +27,9 @@
 - GET /api/v1/auth/me (Bearer token)
 - GET /api/v1/credits/balance (Bearer token)
 - GET /api/v1/providers
+- GET /api/v1/admin/supplier-offers (administrator)
+- POST /api/v1/admin/supplier-offers (administrator)
+- POST /api/v1/admin/supplier-offers/{offer_id}/quote (administrator)
 
 ## Database and migrations
 
@@ -34,7 +40,7 @@
 
 ## Important limitations
 
-- Provider adapters do not call external AI services yet.
+- The provider adapter is implemented and mock-tested, but no live external AI service call or supplier resale agreement has been verified.
 - No credit purchase or grant endpoint is exposed.
 - Payment processing and subscription enforcement are not implemented.
 - Credit debit is not yet connected to AI request execution.
