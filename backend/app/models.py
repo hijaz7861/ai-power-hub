@@ -60,3 +60,22 @@ class SupplierOffer(Base):
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
+class PaymentWebhookEvent(Base):
+    """Verified provider webhook inbox; business settlement is a separate step."""
+    __tablename__ = "payment_webhook_events"
+    __table_args__ = (
+        UniqueConstraint("event_token", name="uq_payment_webhook_event_token"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_token: Mapped[str] = mapped_column(String(128), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    tracker_token: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    amount_minor_units: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    processing_status: Mapped[str] = mapped_column(String(24), default="received", nullable=False)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
