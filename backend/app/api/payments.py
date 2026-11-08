@@ -57,7 +57,6 @@ async def create_credit_topup(
     db: Session = Depends(get_db),
 ) -> PaymentTopupResponse:
     settings = get_settings()
-    client = _client()
     key = payload.idempotency_key.strip()
     if len(key) < 8:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="idempotency_key is invalid")
@@ -76,10 +75,12 @@ async def create_credit_topup(
             return _response(order, None)
         if order.status != "pending":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This payment order cannot be retried")
+        client = _client()
         if order.provider_tracker:
             try:
                 checkout_url = await client.create_checkout_url(
                     tracker=order.provider_tracker,
+                    order_reference=order.reference,
                     public_app_url=settings.public_app_url,
                 )
             except SafepayError as exc:
@@ -116,6 +117,7 @@ async def create_credit_topup(
             try:
                 checkout_url = await client.create_checkout_url(
                     tracker=order.provider_tracker,
+                    order_reference=order.reference,
                     public_app_url=settings.public_app_url,
                 )
             except SafepayError as exc:
@@ -123,6 +125,7 @@ async def create_credit_topup(
             return _response(order, checkout_url)
         db.refresh(order)
 
+    client = _client()
     try:
         checkout = await client.create_checkout(
             amount_minor_units=order.amount_minor_units,
