@@ -23,6 +23,9 @@ The proposed entry plan starts at **PKR 100/month**. Credit limits and plan econ
 - HTTPS-only OpenAI-compatible async adapter with mocked HTTP tests; no live supplier credentials are included.
 - Admin role protection and a CLI-only bootstrap command for promoting an existing account.
 - Admin-only supplier wholesale-offer registry, commercial-contract activation gate, and retail-price preview using the integer-safe pricing engine.
+- Admin-only manual credit adjustments with idempotency and an actor-linked audit ledger.
+- Authenticated customer credit history endpoint scoped to the signed-in account.
+- Frontend registration/login/logout through Next.js server routes and HttpOnly, SameSite=Strict session cookies; account panel displays balance and recent credit activity.
 - Alembic initial database migration.
 - Automated backend tests and GitHub Actions workflow.
 
