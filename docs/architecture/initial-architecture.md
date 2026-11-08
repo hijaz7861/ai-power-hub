@@ -32,6 +32,8 @@
 - POST /api/v1/admin/supplier-offers (administrator)
 - POST /api/v1/admin/supplier-offers/{offer_id}/quote (administrator)
 - POST /api/v1/admin/credits/grant (administrator; audited manual adjustment)
+- POST /api/v1/webhooks/safepay (public signed provider webhook inbox)
+- GET /api/v1/admin/payment-events (administrator)
 
 ## Database and migrations
 
@@ -43,6 +45,7 @@
 ## Important limitations
 
 - The provider adapter is implemented and mock-tested, but no live external AI service call or supplier resale agreement has been verified.
+- Safepay webhook ingestion verifies raw-body HMAC-SHA512 signatures and deduplicates events, but payment order creation, reconciliation and credit settlement are not implemented.
 - No credit purchase or grant endpoint is exposed.
 - Payment processing and subscription enforcement are not implemented.
 - Credit debit and manual grant primitives are not yet connected to metered AI request execution or verified customer payments.
