@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-08
 
-## Current milestone: Initial platform foundation
+## Current milestone: Initial platform foundation + commercial pricing primitive
 
 ### Completed in this branch (implementation present; CI/build checks still pending)
 - [x] Public GitHub repository and main branch
@@ -16,6 +16,8 @@ Last updated: 2026-11-08
 - [x] Authenticated credit-balance endpoint
 - [x] Credit debit domain primitive with idempotency key
 - [x] Provider configuration catalogue with explicit non-operational status
+- [x] Integer-safe wholesale-to-retail pricing domain engine (provider, contributor, infrastructure and support costs; fees, tax and target margin)
+- [x] Pricing validation tests and AI Power Network commercial architecture document
 - [x] Alembic initial schema migration
 - [x] Initial Next.js + TypeScript dashboard
 - [x] Backend and frontend GitHub Actions workflows
@@ -25,7 +27,8 @@ Last updated: 2026-11-08
 - [x] Alembic upgrade smoke test
 - [x] Alembic schema consistency check
 - [x] Alembic autogeneration template smoke test
-- [ ] GitHub Actions run status independently confirmed
+- [ ] Latest GitHub Actions run independently confirmed
+- [ ] Previous backend CI run passed 19 tests and failed one new pricing test because its fixture inherited the 15% default margin; fixture corrected on the current branch, awaiting a fresh CI result
 - [ ] Frontend typecheck and production build confirmed
 - [ ] Termux-native install and runtime confirmed
 
@@ -38,7 +41,8 @@ Last updated: 2026-11-08
 - [ ] Subscription plans and billing state machine
 - [ ] Payment verification workflow
 - [ ] Provider adapter interface and first live provider
-- [ ] Model catalogue and cost/credit pricing table
+- [ ] Persisted supplier offers, model catalogue and cost/credit pricing table
+- [ ] Admin-only pricing policy and supplier contract management
 - [ ] AI request orchestration and usage settlement
 - [ ] Frontend authentication and protected dashboard
 - [ ] Chat UI and conversation persistence
