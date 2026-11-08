@@ -1,25 +1,54 @@
-# Initial Architecture
+# AI Power Hub — Initial Architecture
 
-## Current implementation boundary
+## Implemented in this branch
 
-This first engineering slice establishes only the HTTP application shell and liveness/readiness probes. It does not yet implement authentication, persistence, provider calls, billing, credits, or production readiness.
+- FastAPI application and liveness/readiness endpoints.
+- SQLAlchemy persistence models for users, credit accounts, and credit ledger.
+- Environment-backed settings with production checks for secret strength and debug mode.
+- Password hashing using Python scrypt.
+- Short-lived HS256 bearer access tokens.
+- Registration, login, and authenticated profile endpoint.
+- Authenticated credit-balance endpoint.
+- Integer-credit debit service with conditional balance update and idempotency key.
+- Provider configuration catalogue that explicitly reports adapters as not implemented.
+- Alembic migration environment and initial schema migration.
+- Isolated SQLite tests and GitHub Actions CI.
 
-## Planned request flow
+## Current API
 
-Client -> API authentication/authorization -> request validation -> credit reservation -> provider orchestration -> usage settlement -> response.
+- GET /
+- GET /health
+- GET /ready
+- POST /api/v1/auth/register
+- POST /api/v1/auth/login
+- GET /api/v1/auth/me (Bearer token)
+- GET /api/v1/credits/balance (Bearer token)
+- GET /api/v1/providers
 
-## Architectural decisions
+## Database and migrations
 
-- Start with a modular monolith to reduce early operational complexity.
-- Keep provider adapters isolated behind a common interface.
-- Keep secrets in deployment environment/secret storage; never commit real credentials.
-- Treat credit reservation and settlement as transactional operations when the billing subsystem is introduced.
-- Add readiness checks only when real infrastructure dependencies exist.
+- SQLite is intended only for local development and tests.
+- Production must use PostgreSQL and the optional psycopg driver.
+- Run `python -m alembic upgrade head` before production application startup.
+- Automatic `create_all` is disabled when APP_ENV=production.
+
+## Important limitations
+
+- Provider adapters do not call external AI services yet.
+- No credit purchase or grant endpoint is exposed.
+- Payment processing and subscription enforcement are not implemented.
+- Credit debit is not yet connected to AI request execution.
+- Rate limiting, email verification, password reset, refresh-token rotation, and administrative RBAC remain future work.
+- No production deployment or production security audit has been completed.
 
 ## Local development
 
 ```bash
 python -m pip install -r requirements.txt
+cp .env.example .env
+python -m alembic upgrade head
 python -m uvicorn backend.app.main:app --reload
 python -m pytest -q
 ```
+
+Set a strong, random SECRET_KEY before deployment. Never commit real credentials.
