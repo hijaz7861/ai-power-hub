@@ -1,51 +1,92 @@
-# Safepay webhook inbox
+# Safepay Express Checkout and credit settlement
 
-## Provider choice and prerequisites
+## Provider flow
 
-Safepay is the first Pakistan-focused payment integration candidate because its
-developer documentation describes PKR payment flows, a free sandbox environment
-and a separate production onboarding process. The platform does not claim a
-merchant account exists.
+Safepay's Express Checkout documentation describes this server-side sequence:
+create a payment session/tracker, request a short-lived time-based token (TBT),
+build a hosted checkout URL, then receive the shopper's return and payment event.
+The implementation follows that documented sequence and uses fixed provider hosts.
 
 Official references:
-- API reference: https://apidocs.getsafepay.com/
-- Developer setup: https://safepay.pk/docs/developers
+- Express Checkout: https://apidocs.getsafepay.com/
+- Safepay developer guide: https://safepay.pk/docs/developers
 - Webhook overview: https://safepay-docs.netlify.app/developers/webhooks/overview/
 - Webhook event types: https://safepay-docs.netlify.app/developers/webhooks/webhook-types/
 - HMAC verification: https://safepay-docs.netlify.app/developers/webhooks/verify-hmac-signatures/
 
-## Current implementation
+## Customer top-up
+
+Authenticated endpoints:
+
+- POST /api/v1/payments/topups
+- GET /api/v1/payments/topups/{reference}
+
+The top-up request accepts PKR 100 through PKR 100,000 and a per-user idempotency
+key. The server creates a pending payment order, requests a Safepay payment
+session and short-lived TBT, and returns a hosted checkout URL. The API key and
+secret key never leave the backend. The customer can only retrieve their own
+payment order.
+
+The product accounting convention is 1 credit = 1 paisa. Thus a PKR 100
+successful top-up grants 10,000 credits. Amounts are sent to Safepay in the
+currency's lowest denomination.
+
+The browser is redirected to the hosted checkout. Return/cancel URLs include the
+internal order reference. A return redirect never changes the payment status or
+grants credits by itself.
+
+## Webhook verification and settlement
 
 Public endpoint:
 
 - POST /api/v1/webhooks/safepay
 
-The endpoint:
-1. Requires SAFEPAY_WEBHOOK_SECRET configured server-side.
-2. Reads the raw request body with a 1 MiB size limit.
-3. Verifies the X-SFPY-SIGNATURE header using HMAC-SHA512 over the exact raw bytes.
-4. Parses the JSON only after signature verification.
-5. Validates the event token/type and minimal tracker, amount and currency fields.
-6. Stores only the event token, event type, tracker token, amount, currency, SHA-256 payload digest and processing status.
-7. Deduplicates repeated event tokens and rejects token reuse with a different payload.
+The receiver:
+1. Requires SAFEPAY_WEBHOOK_SECRET and SAFEPAY_API_KEY configured server-side.
+2. Reads raw body with a 1 MiB limit.
+3. Verifies X-SFPY-SIGNATURE using HMAC-SHA512 over the exact raw body.
+4. Confirms the event merchant_api_key equals the configured merchant API key.
+5. Deduplicates event token and rejects token reuse with a different payload.
+6. Matches the provider tracker and metadata order reference to one pending order.
+7. Requires payment.succeeded, TRACKER_ENDED, exact expected amount and exact
+   currency before crediting the account.
+8. Adds a payment ledger entry and marks the order succeeded in the same database
+   transaction. Repeated success events cannot grant the same order twice.
 
-Raw webhook bodies and customer email addresses are not persisted. The admin-only
-GET /api/v1/admin/payment-events endpoint exposes the minimal inbox metadata.
+Only minimal event metadata and a SHA-256 body digest are stored. Raw webhook
+payloads and customer email addresses are not persisted. Amount/currency/order
+mismatches are recorded without issuing credits.
 
-## Important non-functionality
+Failed payment events are recorded as failed attempts; they do not grant credits
+or prematurely mark an order terminal. Refund events are marked for manual review.
+No automatic credit reversal occurs until refund, partial-refund and chargeback
+policy is implemented.
 
-This is not yet a payment integration or payment confirmation workflow. It does
-not create Safepay trackers/checkout sessions, link a webhook to a pending payment
-order, query the provider, grant credits, process refunds or reconcile settlement.
-A successful redirect or webhook alone must not grant credits without matching
-the provider tracker, user, expected amount and currency against a pending order.
+## Backend environment
 
-Sandbox and production webhook secrets are different. Never put the secret in
-frontend variables, source code, GitHub files or logs. Do not configure production
-webhooks until a merchant account and public HTTPS endpoint exist.
+Set these values on the backend only:
 
-## Verification
+- SAFEPAY_API_KEY
+- SAFEPAY_SECRET_KEY
+- SAFEPAY_WEBHOOK_SECRET
+- SAFEPAY_ENVIRONMENT=sandbox
+- PUBLIC_APP_URL=https://your-public-domain
 
-Backend tests cover valid HMAC, invalid signatures, missing configuration,
-malformed JSON, invalid amounts, event deduplication and event-token collision.
-No live Safepay request or payment has been performed.
+Configure the Safepay webhook target as:
+PUBLIC_APP_URL + /api/v1/webhooks/safepay
+
+Use the sandbox dashboard credentials and sandbox webhook secret first. Do not
+commit keys, put them in frontend variables, or paste them into chat. The public
+application URL must be HTTPS.
+
+## Not yet verified
+
+- No Safepay merchant account or credentials were supplied.
+- No live sandbox checkout or signed webhook delivery has been performed.
+- The provider reporter API is not yet polled for reconciliation.
+- Refunds, partial refunds, disputes and chargebacks are not automated.
+- Production onboarding, legal terms, MDR/fees, tax and settlement bank account
+  must be confirmed with Safepay before launch.
+
+The code and mocked tests establish an integration foundation, not a live payment
+gateway or production-ready payment operation.
