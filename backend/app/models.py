@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.core.database import Base
 
@@ -42,6 +42,7 @@ class SupplierOffer(Base):
     __table_args__ = (
         UniqueConstraint("supplier_code", "provider_code", "model_code", "billing_unit",
                          name="uq_supplier_offer_identity"),
+        CheckConstraint("wholesale_cost_minor_units > 0", name="ck_supplier_offer_positive_cost"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
