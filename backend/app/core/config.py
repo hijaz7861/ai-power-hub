@@ -21,11 +21,15 @@ class Settings(BaseSettings):
     public_app_url: str = ""
 
     def validate_runtime(self) -> None:
+        if self.safepay_environment not in {"sandbox", "production"}:
+            raise RuntimeError("SAFEPAY_ENVIRONMENT must be sandbox or production")
         if self.app_env.lower() == "production":
             if self.secret_key == "development-only-change-this-secret" or len(self.secret_key) < 32:
                 raise RuntimeError("A production SECRET_KEY of at least 32 characters is required")
             if self.debug:
                 raise RuntimeError("DEBUG must be false in production")
+            if self.public_app_url and not self.public_app_url.startswith("https://"):
+                raise RuntimeError("PUBLIC_APP_URL must use HTTPS in production")
 
 @lru_cache
 def get_settings() -> Settings:
