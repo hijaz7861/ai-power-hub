@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AuthPanel from "@/components/auth-panel";
 
 type Provider = {
   id: string;
@@ -70,6 +71,7 @@ export default function HomePage() {
           <div><span className="eyebrow">YOUR AI WORKSPACE</span><h1>Overview</h1></div>
           <div className={`status-pill ${apiStatus}`}><span className="status-dot" />{statusLabel}</div>
         </header>
+        <AuthPanel />
 
         <section className="hero" id="overview">
           <div className="hero-copy">
