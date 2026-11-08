@@ -9,25 +9,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "credit_ledger",
-        sa.Column("actor_user_id", sa.Integer(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_credit_ledger_actor_user",
-        "credit_ledger",
-        "users",
-        ["actor_user_id"],
-        ["id"],
-    )
-    op.create_index(
-        "ix_credit_ledger_actor_user_id",
-        "credit_ledger",
-        ["actor_user_id"],
-    )
+    with op.batch_alter_table("credit_ledger") as batch_op:
+        batch_op.add_column(sa.Column("actor_user_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_credit_ledger_actor_user",
+            "users",
+            ["actor_user_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        batch_op.create_index("ix_credit_ledger_actor_user_id", ["actor_user_id"])
 
 
 def downgrade() -> None:
-    op.drop_index("ix_credit_ledger_actor_user_id", table_name="credit_ledger")
-    op.drop_constraint("fk_credit_ledger_actor_user", "credit_ledger", type_="foreignkey")
-    op.drop_column("credit_ledger", "actor_user_id")
+    with op.batch_alter_table("credit_ledger") as batch_op:
+        batch_op.drop_index("ix_credit_ledger_actor_user_id")
+        batch_op.drop_constraint("fk_credit_ledger_actor_user", type_="foreignkey")
+        batch_op.drop_column("actor_user_id")
