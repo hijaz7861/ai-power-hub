@@ -99,3 +99,20 @@ h1{font:700 27px Manrope,sans-serif;margin:7px 0 0}
 .ledger-negative{color:#ff9b9b}
 .auth-error{grid-column:1/-1;margin:0;color:#ff9b9b;font-size:12px}
 @media(max-width:760px){.account-panel{grid-template-columns:1fr}.account-credit{text-align:left}.auth-form{grid-template-columns:1fr}.account-button.secondary{justify-self:start}}
+
+
+.topup-form{grid-column:1/-1;display:grid;grid-template-columns:minmax(120px,180px) auto;gap:10px 12px;align-items:end;border-top:1px solid var(--line);padding-top:14px}
+.topup-form label{display:grid;gap:6px;color:var(--muted);font-size:12px}
+.topup-form input{width:100%;border:1px solid var(--line);background:#0b1321;color:var(--text);border-radius:9px;padding:11px 12px;font:inherit}
+.topup-form>small,.topup-form .auth-error{grid-column:1/-1;color:var(--muted);font-size:11px}
+.payment-page{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg)}
+.payment-card{width:min(100%,620px);display:grid;gap:18px;padding:32px;background:var(--panel);border:1px solid var(--line);border-radius:20px}
+.payment-card h1{font:800 30px Manrope,sans-serif;margin:0}
+.payment-card p{color:var(--muted);margin:0}
+.payment-success,.payment-pending{padding:16px;border-radius:12px;background:var(--panel2);line-height:1.6}
+.payment-success{border:1px solid #1b8b68;color:#9ae4c6}
+.payment-pending{color:var(--text)}
+.payment-pending small{display:block;color:var(--muted);margin-top:8px}
+.payment-error{color:#ff9b9b!important}
+.secondary-link{color:var(--muted);font-size:13px;text-decoration:none}
+@media(max-width:760px){.topup-form{grid-template-columns:1fr}.topup-form>*{grid-column:1/-1}}
