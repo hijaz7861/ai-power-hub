@@ -11,8 +11,11 @@ from backend.app.schemas import (
     SupplierOfferResponse,
     SupplierOfferQuoteRequest,
     SupplierOfferQuoteResponse,
+    AdminCreditGrantRequest,
+    AdminCreditGrantResponse,
 )
 from backend.app.services.pricing import PricingInputs, calculate_retail_price
+from backend.app.services.credits import grant_credits
 
 router = APIRouter(prefix="/api/v1/admin", tags=["administration"])
 
@@ -90,4 +93,33 @@ def quote_supplier_offer(
         tax_minor_units=quote.tax,
         projected_profit_minor_units=quote.projected_profit,
         projected_margin_bps=quote.projected_margin_bps,
+    )
+
+
+@router.post(
+    "/credits/grant",
+    response_model=AdminCreditGrantResponse,
+)
+def admin_grant_credits(
+    payload: AdminCreditGrantRequest,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AdminCreditGrantResponse:
+    target = db.get(User, payload.user_id)
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Active user not found")
+    try:
+        balance = grant_credits(
+            db,
+            user_id=payload.user_id,
+            amount=payload.amount,
+            idempotency_key=payload.idempotency_key,
+            description=payload.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    return AdminCreditGrantResponse(
+        user_id=payload.user_id,
+        granted_credits=payload.amount,
+        balance=balance,
     )
