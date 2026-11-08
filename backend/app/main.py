@@ -7,6 +7,7 @@ from backend.app.api.credits import router as credits_router
 from backend.app.api.health import router as health_router
 from backend.app.api.providers import router as providers_router
 from backend.app.api.webhooks import router as webhooks_router
+from backend.app.api.payments import router as payments_router
 from backend.app.core.config import get_settings
 from backend.app.core.database import Base, engine
 
@@ -29,6 +30,7 @@ app.include_router(credits_router)
 app.include_router(providers_router)
 app.include_router(admin_router)
 app.include_router(webhooks_router)
+app.include_router(payments_router)
 
 @app.get("/", tags=["system"])
 async def root() -> dict[str, str]:
