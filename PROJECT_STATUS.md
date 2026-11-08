@@ -2,62 +2,60 @@
 
 Last updated: 2026-11-08
 
-## Current milestone: Customer accounts, supplier registry and payment webhook foundation
+## Current milestone: Safepay sandbox top-up and verified credit settlement foundation
 
 ### Implemented in feat/backend-foundation
 - [x] FastAPI application, health/readiness endpoints and SQLAlchemy persistence
-- [x] Alembic migrations through 0004_payment_webhook_inbox
-- [x] Registration, login, authenticated profile and scrypt password hashing
-- [x] Short-lived bearer tokens and customer/admin role authorization
-- [x] CLI-only admin bootstrap for an existing registered account
-- [x] Idempotent credit debit with strict integer validation and overdraw protection
-- [x] Admin-only manual credit grant with reason, idempotency and actor-linked audit record
-- [x] Authenticated customer credit history restricted to current user
-- [x] Admin-only supplier wholesale-offer registry and retail-price preview
-- [x] Supplier offer activation gate requiring admin assertion of verified commercial contract
-- [x] Integer-safe wholesale-to-retail pricing engine
-- [x] HTTPS-only async OpenAI-compatible adapter with mocked transport tests; no live AI provider call claimed
-- [x] Next.js dashboard with registration/login/logout server routes and HttpOnly SameSite=Strict session cookie
-- [x] Account panel showing identity, balance and recent credit activity
-- [x] Safepay webhook inbox with raw-body HMAC-SHA512 signature verification
-- [x] Webhook replay protection using unique event token and payload hash collision detection
-- [x] Minimal webhook metadata persistence; customer email and raw webhook body are not stored
-- [x] Admin-only payment event inbox view
-- [x] Documentation for supplier registry, admin bootstrap, credit ledger and Safepay webhook setup
+- [x] Alembic migrations through 0005_payment_orders
+- [x] Registration/login, scrypt password hashing, short-lived bearer tokens and customer/admin roles
+- [x] CLI-only bootstrap for an existing administrator account
+- [x] Idempotent credit debit, admin manual grant with actor audit, and current-user-scoped ledger history
+- [x] Integer-safe wholesale-to-retail pricing engine and admin supplier offer registry
+- [x] HTTPS-only OpenAI-compatible adapter with mock tests; no live AI supplier call claimed
+- [x] Next.js registration/login/logout using HttpOnly SameSite=Strict session cookie
+- [x] Customer account panel, credit balance, recent ledger activity and top-up form
+- [x] Safepay Express Checkout adapter using server-side API/secret keys and fixed sandbox/production hosts
+- [x] PKR top-up orders with 100 PKR minimum, 100,000 PKR maximum and per-user idempotency
+- [x] 1 credit = 1 paisa; a successful PKR 100 top-up grants 10,000 credits
+- [x] Checkout return/cancel pages and owner-scoped payment status API
+- [x] Raw-body HMAC-SHA512 webhook verification, merchant identity check and event replay/collision protection
+- [x] Payment settlement only after exact order reference/tracker, amount, currency and TRACKER_ENDED state match
+- [x] Duplicate success events cannot grant credits twice; amount mismatches are recorded without crediting
+- [x] Refund events are flagged for manual review; no automatic credit reversal is performed
+- [x] Admin-only payment event inbox and minimal event metadata storage
+- [x] Documentation for provider setup, supplier agreements, admin bootstrap and payment lifecycle
 
-### Latest verified GitHub Actions before webhook inbox additions
-- [x] Backend CI #180: 39 tests passed; Alembic migrations 0001 through 0003 passed
-- [x] Frontend CI #56: TypeScript type check and production build passed
-- [ ] Fresh Backend CI for migration 0004 and webhook tests
-- [ ] Fresh Frontend CI for latest head
-- [ ] Browser-based end-to-end authentication test
+### Latest verified GitHub Actions
+- [x] Backend CI #266: 55 tests passed; Alembic migrations 0001 through 0005 passed
+- [x] Frontend CI #100: TypeScript type check and Next.js production build passed
+- [ ] Real Safepay sandbox transaction and signed webhook delivery
+- [ ] Browser-based end-to-end test of register, login, checkout return and balance refresh
 - [ ] Termux-native install and runtime confirmed
 
 ### Remaining engineering milestones
-- [ ] Safepay sandbox payment-order/checkout creation and tracker reconciliation
-- [ ] Payment order state machine, webhook-to-order matching and verified credit settlement
-- [ ] Payment refunds, chargebacks, reconciliation and customer receipts
-- [ ] Payment gateway merchant sandbox account and webhook endpoint configuration
-- [ ] Persisted retail price policies and customer-visible service catalogue
-- [ ] Metered AI orchestration, usage recording, reserve/capture/refund and idempotent settlement
-- [ ] Live AI supplier credentials, model allowlists, calls, supplier invoices and resale permissions
+- [ ] Safepay sandbox merchant account, API key, secret key, webhook secret and public HTTPS callback configuration
+- [ ] Verify payment outcome against Safepay reporter API and periodic provider reconciliation
+- [ ] Refund, partial refund, chargeback and dispute state machine with safe credit reversal policy
+- [ ] Payment receipts and admin reconciliation dashboard
+- [ ] Persisted retail price policies, service catalogue and metered AI request orchestration
+- [ ] Credit reserve/capture/refund for actual AI usage, with provider token usage and cost reconciliation
+- [ ] Live AI supplier credentials, model allowlists, live calls and resale permissions
 - [ ] PostgreSQL integration, backup/restore validation and production database rollout
 - [ ] Rate limiting, abuse controls, CSRF/origin protection and request-size/time limits
 - [ ] Admin management UI and audit-event search
 - [ ] Customer chat UI and conversation persistence
-- [ ] Subscription plans and renewal/cancellation state machine
+- [ ] Subscription plans, renewals and cancellation state machine
 - [ ] Image/audio/video integrations
-- [ ] Opt-in contributor node agent, sandbox, quotas, proof-of-work verification and payouts
-- [ ] Security/privacy review, end-to-end tests and production monitoring
-- [ ] Production deployment and incident response
+- [ ] Opt-in contributor node agent, sandbox, quotas, proof-of-work verification and contributor payouts
+- [ ] Security/privacy review, end-to-end tests, production deployment and monitoring
 
 ## Payment and commercial limitations
 
-- Safepay webhook receiver is a signed event inbox only. It does not create checkout sessions, link events to payment orders, mark orders paid, or credit users.
-- Webhook secret must be configured server-side as SAFEPAY_WEBHOOK_SECRET. Sandbox and production secrets are distinct.
-- A verified webhook event is not sufficient by itself to grant credits until a pending payment order, exact amount, currency, tracker and customer are reconciled.
-- Safepay sandbox access is available through its developer onboarding; production requires separate merchant onboarding.
-- No live payment or live AI provider transaction has been performed.
-- Supplier contract_status=verified remains an administrator assertion based on an external agreement.
-- Admin credit grant is a manual support/promotional adjustment, not proof of payment.
+- The Safepay integration is implemented and mock-tested only. No merchant credentials or live sandbox payment have been supplied or used.
+- Configure SAFEPAY_API_KEY, SAFEPAY_SECRET_KEY, SAFEPAY_WEBHOOK_SECRET, SAFEPAY_ENVIRONMENT=sandbox and PUBLIC_APP_URL on the backend only.
+- Configure the provider webhook URL as PUBLIC_APP_URL + /api/v1/webhooks/safepay. Use sandbox credentials and sandbox webhook secret first.
+- A successful browser redirect is not proof of payment. Only the signed, matching payment.succeeded event with TRACKER_ENDED and exact amount/currency can grant credits.
+- A payment refund event is recorded for review; credits are not automatically reversed until a dispute/refund policy is implemented.
+- Supplier contract_status=verified remains an administrator assertion based on an external signed agreement.
+- Provider adapters and CI passing do not establish live commercial rights or production readiness.
 - No production-readiness or revenue-generation claim is made.
