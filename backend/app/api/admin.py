@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 from backend.app.api.auth import require_admin
 from backend.app.core.database import get_db
 from backend.app.models import SupplierOffer, User
-from backend.app.schemas import (\n    SupplierOfferCreate, SupplierOfferResponse,\n    SupplierOfferQuoteRequest, SupplierOfferQuoteResponse,\n)\nfrom backend.app.services.pricing import PricingInputs, calculate_retail_price
+from backend.app.schemas import (
+    SupplierOfferCreate,
+    SupplierOfferResponse,
+    SupplierOfferQuoteRequest,
+    SupplierOfferQuoteResponse,
+)
+from backend.app.services.pricing import PricingInputs, calculate_retail_price
 
 router = APIRouter(prefix="/api/v1/admin", tags=["administration"])
 
