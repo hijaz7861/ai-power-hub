@@ -24,8 +24,9 @@ async def receive_safepay_webhook(
     signature: str | None = Header(default=None, alias="X-SFPY-SIGNATURE"),
     db: Session = Depends(get_db),
 ) -> dict[str, bool]:
-    secret = get_settings().safepay_webhook_secret
-    if not secret:
+    settings = get_settings()
+    secret = settings.safepay_webhook_secret
+    if not secret or not settings.safepay_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Safepay webhook is not configured",
@@ -59,6 +60,9 @@ async def receive_safepay_webhook(
 
     if not isinstance(event, dict):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Webhook event must be an object")
+
+    if event.get("merchant_api_key") != settings.safepay_api_key:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Webhook merchant mismatch")
 
     event_token = event.get("token")
     event_type = event.get("type")
@@ -131,7 +135,7 @@ async def receive_safepay_webhook(
         if matched_order is not None:
             record.payment_order_id = matched_order.id
             if event_type == "payment.succeeded":
-                tracker_matches = matched_order.provider_tracker in (None, tracker)
+                tracker_matches = bool(tracker) and matched_order.provider_tracker in (None, tracker)
                 amount_matches = amount == matched_order.amount_minor_units
                 currency_matches = currency == matched_order.currency
                 state_matches = provider_state == "TRACKER_ENDED"
