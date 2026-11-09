@@ -33,6 +33,7 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 - Verified partial/full Safepay refund webhook events reverse purchased credits with event idempotency and a bounded cumulative refund total.
 - Same-origin validation for cookie-authenticated mutations and browser security headers.
 - Production configuration fails closed unless PostgreSQL, Redis, a strong secret, public HTTPS URL and frontend APP_ORIGIN are configured.
+- Docker Compose stack for PostgreSQL 16, authenticated Redis, FastAPI and standalone Next.js frontend; configuration is checked in CI.
 
 ## Enabling a metered chat model
 
@@ -86,17 +87,21 @@ Install the optional PostgreSQL driver from requirements-postgres.txt and config
 postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 ```
 
-The backend CI includes a PostgreSQL 16 service that upgrades all migrations, downgrades to base and re-upgrades to head. This validates the migration chain against PostgreSQL; it is not a production backup/restore drill.
+The backend CI includes a PostgreSQL 16 service that upgrades all migrations through 0011, downgrades to base and re-upgrades to head. This validates the migration chain against PostgreSQL; it is not a production backup/restore drill.
 
 Sensitive routes use Redis-backed fixed-window rate limits in production. A process-local in-memory fallback is used only for development and is not suitable for multi-worker or multi-instance production. The limiter keys use the direct network peer and authenticated principal; forwarded IP headers are not trusted by the app.
 
 The Next.js cookie-authenticated backend-for-frontend rejects cross-origin mutations. Set frontend APP_ORIGIN to the exact public origin (for example, https://ai.example.com) in production. Browser security headers include frame denial, MIME sniffing protection, referrer policy, restricted permissions, production HSTS and no-store API responses. Configure all secrets through the hosting provider's secret manager; never commit them.
 
+## Docker Compose deployment
+
+See DEPLOYMENT.md for host prerequisites, secret generation, Compose startup, reverse-proxy requirements and backup/restore procedures. The Compose stack binds the frontend to 127.0.0.1 by default and does not publish PostgreSQL, Redis or the backend API ports. Docker Compose syntax is validated in CI; container image build/run and production deployment still require a real host.
+
 ## Verification and security
 
-- Backend CI #564: 96 tests passed; SQLite migration validation passed.
-- Backend CI #564 PostgreSQL 16 job: upgrade, downgrade and re-upgrade passed.
-- Frontend CI #299: TypeScript check and Next.js production build passed.
+- Backend CI #600: 99 tests passed; SQLite migration validation passed.
+- Backend CI #600 PostgreSQL 16 job: upgrade, downgrade and re-upgrade passed.
+- Frontend CI #318: TypeScript check and Next.js production build passed.
 - Live OpenAI/Mistral calls, Safepay sandbox transactions, browser end-to-end testing and production deployment have not been performed.
 - Provider adapters and mocked CI tests do not establish live supplier access, resale rights, production readiness or revenue.
 - A verified supplier contract state is an administrator attestation, not independent legal verification.

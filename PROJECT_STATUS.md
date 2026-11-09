@@ -44,12 +44,16 @@ Last updated: 2026-11-09
 - [x] Recovery never auto-releases a hold when a provider may have completed a billable request
 - [x] Admin Console UI for supplier rates, contract attestation, AI reconciliation/recovery, exceptional hold release, payment orders/refunds and webhook audit
 - [x] PostgreSQL 16 CI migration round-trip: upgrade 0001–0011, downgrade to base, then re-upgrade to head
+- [x] Dependency-aware readiness endpoint checks database and Redis availability
+- [x] Docker Compose stack for PostgreSQL 16, password-protected Redis, FastAPI and standalone Next.js frontend
+- [x] Non-root backend/frontend containers, internal-only database/API ports and loopback-only frontend publishing
+- [x] CI validates Docker Compose configuration
 - [x] Provider catalogue distinguishes available OpenAI/Mistral adapter code from integrations not implemented
 
 ### Latest verified GitHub Actions
-- [x] Backend CI #564: 96 tests passed; SQLite migration validation passed
-- [x] PostgreSQL migration job in Backend CI #564: PostgreSQL 16 upgrade, downgrade and re-upgrade passed
-- [x] Frontend CI #299: TypeScript type check and Next.js production build passed
+- [x] Backend CI #600: 99 tests passed; SQLite migration validation passed
+- [x] PostgreSQL migration job in Backend CI #600: PostgreSQL 16 upgrade, downgrade and re-upgrade passed
+- [x] Frontend CI #318: TypeScript type check and Next.js production build passed
 - [ ] Browser end-to-end test of registration, login, checkout, multi-turn chat, refund, export and deletion
 - [ ] Termux-native install and runtime confirmed
 
@@ -60,6 +64,7 @@ Last updated: 2026-11-09
 - [ ] Subscription plans, renewals, cancellation and plan enforcement
 - [ ] PostgreSQL production rollout, backup/restore drills and connection-pool sizing
 - [x] Route-specific rate limiting for authentication, chat, top-ups and account closure (Redis required in production)
+- [ ] Build and run container images on a real Docker host; configure TLS reverse proxy and host firewall
 - [ ] Additional abuse controls, request-size/time limits and centralized monitoring
 - [ ] Email verification, password reset, token revocation/rotation and account recovery
 - [ ] Anthropic/Gemini native adapters and image/audio/video integrations
@@ -74,7 +79,7 @@ Last updated: 2026-11-09
 - If provider usage is missing or exceeds the authorized reservation, funds remain held for reconciliation. Admin settlement/release requires external evidence and administrator attestation.
 - Safepay refund processing is based on signed webhook events and mocked CI tests; no merchant sandbox/live transaction has been executed.
 - A refund can create a negative credit balance when credits have already been spent. This is an internal credit reversal, not an automated refund payout to the payer's bank/card.
-- Production config fails closed unless PostgreSQL, Redis, strong SECRET_KEY, HTTPS PUBLIC_APP_URL and frontend APP_ORIGIN are configured. No production environment has yet been provisioned or deployed. Redis is mandatory for distributed production rate limiting; the in-memory limiter is development-only.
+- Production config fails closed unless PostgreSQL, Redis, strong SECRET_KEY, HTTPS PUBLIC_APP_URL and frontend APP_ORIGIN are configured. No production environment has yet been provisioned or deployed. Docker Compose syntax is CI-validated, but container images have not yet been built or run on a live host. Redis is mandatory for distributed production rate limiting; the in-memory limiter is development-only.
 - Account export and account closure are implemented; closure anonymizes the login identity and erases app-stored chat content, but retains financial/audit metadata for reconciliation. It does not control provider-side retention or replace a legally reviewed privacy policy.
 - No production deployment, live commercial service or revenue-generation claim is made.
 - Keep PR #1 Draft/Open until live provider/payment checks, independent review and deployment gates are complete.
