@@ -233,6 +233,7 @@ export default function ChatPanel() {
               if (event.target.value) void openConversation(Number(event.target.value));
             }}
           >
+            <option value="">New conversation</option>
             {conversations.map((item) => (
               <option key={item.id} value={item.id}>{item.title}</option>
             ))}
