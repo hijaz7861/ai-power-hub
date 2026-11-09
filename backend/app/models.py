@@ -98,6 +98,7 @@ class PaymentOrder(Base):
     reference: Mapped[str] = mapped_column(String(64), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     amount_minor_units: Mapped[int] = mapped_column(Integer, nullable=False)
+    refunded_amount_minor_units: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     currency: Mapped[str] = mapped_column(String(3), default="PKR", nullable=False)
     provider: Mapped[str] = mapped_column(String(24), default="safepay", nullable=False)
     status: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
