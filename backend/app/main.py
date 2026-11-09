@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from backend.app import models  # noqa: F401
 from backend.app.api.auth import router as auth_router
+from backend.app.api.chat import router as chat_router
 from backend.app.api.admin import router as admin_router
 from backend.app.api.credits import router as credits_router
 from backend.app.api.health import router as health_router
@@ -26,6 +27,7 @@ app = FastAPI(
 )
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(chat_router)
 app.include_router(credits_router)
 app.include_router(providers_router)
 app.include_router(admin_router)
