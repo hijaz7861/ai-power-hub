@@ -74,6 +74,7 @@ export default function AuthPanel() {
 
       const loaded = await refreshAccount();
       if (!loaded) throw new Error("Signed in, but account data could not be loaded");
+      window.dispatchEvent(new Event("aiph:auth-changed"));
       setPassword("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Request failed");
@@ -115,6 +116,7 @@ export default function AuthPanel() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
       setAccount(null);
+      window.dispatchEvent(new Event("aiph:auth-changed"));
       setPassword("");
     } finally {
       setBusy(false);
