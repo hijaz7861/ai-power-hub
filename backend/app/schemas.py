@@ -226,3 +226,17 @@ class ConversationMessageResponse(BaseModel):
 class ConversationDetailResponse(BaseModel):
     conversation: ConversationSummaryResponse
     messages: list[ConversationMessageResponse]
+
+
+class PaymentOrderAdminResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    reference: str
+    user_id: int
+    amount_minor_units: int
+    refunded_amount_minor_units: int
+    currency: str
+    status: str
+    provider_tracker: str | None
+    created_at: datetime
+    paid_at: datetime | None
