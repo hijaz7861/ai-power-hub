@@ -2,39 +2,40 @@
 
 Last updated: 2026-11-09
 
-## Current milestone: metered AI execution foundation
+## Current milestone: prepaid metered AI chat foundation
 
 ### Implemented in feat/backend-foundation
-- [x] FastAPI, SQLAlchemy and Alembic migrations through 0007
+- [x] FastAPI, SQLAlchemy and Alembic migrations through 0008
 - [x] Registration/login, scrypt password hashing, short-lived bearer tokens and customer/admin roles
 - [x] CLI-only bootstrap for an existing administrator account
 - [x] Idempotent credit debit, admin manual grant with actor audit, and customer-scoped credit ledger
 - [x] Integer-safe wholesale-to-retail pricing engine and admin supplier-offer registry
-- [x] HTTPS-only OpenAI-compatible adapter with mocked HTTP tests
-- [x] Supplier model rates require matching active, PKR-denominated, contract-verified input/output offers
-- [x] Next.js customer registration/login/logout using HttpOnly SameSite=Strict session cookies
+- [x] HTTPS-only OpenAI-compatible async adapter with mocked HTTP tests
+- [x] Customer account dashboard and HttpOnly SameSite=Strict session cookies
 - [x] Safepay PKR top-up and signed-webhook settlement foundation
 - [x] Credit reservation before metered AI calls, with idempotent reserve/capture/release
-- [x] Authenticated chat completion API for OpenAI and Mistral-compatible endpoints
-- [x] Actual provider token usage is priced through the retail pricing engine
+- [x] Customer chat completion API for OpenAI and Mistral-compatible endpoints
+- [x] Public model catalogue exposes only models with configured server credentials and matching active, PKR, contract-verified input/output rate offers
+- [x] Customer-facing chat panel with model selection, response rendering and credit accounting
+- [x] Actual provider token usage is priced through the integer-safe retail pricing engine
 - [x] Provider failures release the full hold; unused reservation is returned after settlement
 - [x] Completed AI responses are persisted so client retries do not issue duplicate paid calls
 - [x] Missing provider usage or usage above the authorized hold is marked reconciliation_required; funds remain held
+- [x] Admin-only reconciliation inbox and evidence-referenced settlement endpoint; release ledger entries identify the admin actor
 - [x] Provider catalogue distinguishes available OpenAI/Mistral adapter code from integrations not implemented
 
-### Latest verification
-- [x] Backend CI #279 passed; migration 0006 and its backend test suite passed
-- [ ] Metered-chat changes and migration 0007: CI verification pending
-- [ ] Latest frontend CI #105: confirm final production-build conclusion
-- [ ] Real OpenAI/Mistral provider calls and cost reconciliation
+### Latest verified GitHub Actions
+- [x] Backend CI #334: 69 tests passed; Alembic migrations 0001 through 0008 passed
+- [x] Frontend CI #134: TypeScript type check and Next.js production build passed
+- [ ] Live OpenAI/Mistral provider calls and provider-side usage reconciliation
 - [ ] Real Safepay sandbox transaction and signed webhook delivery
-- [ ] Browser end-to-end test of registration, login, checkout return and chat
+- [ ] Browser end-to-end test of registration, login, checkout, chat and balance refresh
 - [ ] Termux-native install and runtime confirmed
 
 ### Remaining engineering milestones
-- [ ] Admin UI for model rate pairs and unresolved AI requests
-- [ ] Reconciliation workflow for missing/over-limit provider usage
-- [ ] Customer-facing chat UI and conversation persistence
+- [ ] Admin dashboard UI for supplier rates, model activation and AI/payment reconciliation
+- [ ] Customer conversation history and persistent chat threads
+- [ ] Safe recovery for interrupted in-progress requests and admin-controlled release of exceptional holds
 - [ ] Safepay reporter reconciliation, receipts, refunds, chargebacks and dispute policy
 - [ ] Subscription plans, renewals, cancellation and plan enforcement
 - [ ] PostgreSQL production rollout and backup/restore validation
@@ -46,9 +47,9 @@ Last updated: 2026-11-09
 
 ## Operational and commercial limitations
 - OpenAI/Mistral chat calls are implemented but have not been verified with live provider credentials.
-- Chat requires server-side provider credentials and two active, PKR-denominated, contract-verified supplier offers per model.
+- Model execution requires server-side provider credentials and two matching active PKR supplier offers for input/output token rates.
 - contract_status=verified is an administrator assertion based on an external signed agreement; the software does not independently verify resale rights.
-- If provider usage is missing or exceeds the authorized reservation, funds remain held for reconciliation. An admin reconciliation UI is not yet implemented.
+- If provider usage is missing or exceeds the authorized reservation, funds remain held for reconciliation. Admin reconciliation API exists, but no admin UI exists yet.
 - Safepay is mock-tested only; no merchant credentials or live sandbox payment have been supplied.
 - No production deployment, live commercial service or revenue-generation claim is made.
 - Keep PR #1 Draft/Open until review, security and operational gates are completed.
