@@ -34,6 +34,8 @@ def client(test_db):
         finally:
             db.close()
 
+    # Rebuild middleware per test so the development in-memory rate limiter is isolated.
+    app.middleware_stack = None
     app.dependency_overrides[get_db] = override_get_db
     try:
         with TestClient(app) as test_client:
