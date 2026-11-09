@@ -1,9 +1,14 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossOriginMutation } from "../../../../lib/csrf";
 
 const backend = process.env.API_BASE_URL || "http://127.0.0.1:8000";
 
 async function adminRequest(request: NextRequest, method: "GET" | "POST") {
+  if (method === "POST") {
+    const rejected = rejectCrossOriginMutation(request);
+    if (rejected) return rejected;
+  }
   const store = await cookies();
   const token = store.get("aiph_session")?.value;
   if (!token) return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
