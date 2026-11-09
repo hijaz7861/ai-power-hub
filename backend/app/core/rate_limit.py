@@ -22,8 +22,8 @@ local ttl = redis.call('PTTL', KEYS[1])
 return {count, ttl}
 """
 
-# Requests are keyed by both the authenticated principal (where available) and
-# the direct TCP peer. Forwarded headers are deliberately not trusted here.
+# Requests are keyed by the authenticated principal (where available) and the
+# direct peer, or by X-Forwarded-For only when that peer is explicitly trusted.
 LIMITS: dict[str, tuple[int, int]] = {
     "POST /api/v1/auth/login": (10, 900),
     "POST /api/v1/auth/register": (5, 3600),
