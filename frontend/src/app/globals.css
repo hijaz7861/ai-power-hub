@@ -178,3 +178,12 @@ h1{font:700 27px Manrope,sans-serif;margin:7px 0 0}
 .chat-message p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.75;margin:7px 0 0}
 .chat-message.assistant p{color:#e4ecf8}
 @media(max-width:600px){.chat-message{max-width:100%}.chat-heading{align-items:stretch}}
+
+
+.admin-payment-events{margin-top:0}
+.admin-payment-row{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:10px}
+.admin-payment-row>div{display:grid;gap:4px;min-width:0}
+.admin-payment-row>div:last-child{text-align:right}
+.admin-payment-row strong{overflow-wrap:anywhere}
+.admin-payment-row small{color:var(--muted);font-size:9px;line-height:1.5;overflow-wrap:anywhere}
+@media(max-width:600px){.admin-payment-row{flex-direction:column}.admin-payment-row>div:last-child{text-align:left}}
