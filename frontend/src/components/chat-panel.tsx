@@ -20,6 +20,13 @@ type ChatResult = {
   balance: number;
 };
 
+function createIdempotencyKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "aiph-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+}
+
 export default function ChatPanel() {
   const [models, setModels] = useState<ChatModel[]>([]);
   const [selectedKey, setSelectedKey] = useState("");
@@ -81,7 +88,7 @@ export default function ChatPanel() {
           model: selected.model,
           messages: [{ role: "user", content: prompt.trim() }],
           max_tokens: 512,
-          idempotency_key: crypto.randomUUID(),
+          idempotency_key: createIdempotencyKey(),
         }),
       });
       const result = await response.json().catch(() => ({}));
