@@ -92,6 +92,7 @@ class PaymentOrder(Base):
         UniqueConstraint("user_id", "idempotency_key", name="uq_payment_order_user_idempotency"),
         UniqueConstraint("provider_tracker", name="uq_payment_order_provider_tracker"),
         CheckConstraint("amount_minor_units > 0", name="ck_payment_order_positive_amount"),
+        CheckConstraint("refunded_amount_minor_units >= 0 AND refunded_amount_minor_units <= amount_minor_units", name="ck_payment_order_refund_range"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
