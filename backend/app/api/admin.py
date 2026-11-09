@@ -232,13 +232,13 @@ def recover_interrupted_ai_request(
     evidence = payload.evidence_reference.strip()
     ai_request.reconciliation_evidence = evidence
     ai_request.reconciled_by_user_id = admin.id
-    ai_request.completed_at = datetime.now(timezone.utc)
 
     if reservation is None:
         # The execution path reserves and commits credits before contacting a
         # provider. No reservation therefore means no paid provider call began.
         ai_request.status = "failed"
         ai_request.error_code = "interrupted_before_reservation"
+        ai_request.completed_at = datetime.now(timezone.utc)
     elif reservation.status == "reserved":
         ai_request.reservation_id = reservation.id
         ai_request.status = "reconciliation_required"
@@ -249,6 +249,7 @@ def recover_interrupted_ai_request(
         ai_request.status = "failed"
         ai_request.credits_charged = reservation.captured_amount
         ai_request.error_code = "interrupted_after_settlement"
+        ai_request.completed_at = datetime.now(timezone.utc)
     else:
         raise HTTPException(status_code=409, detail="Reservation has an unsupported state")
 
