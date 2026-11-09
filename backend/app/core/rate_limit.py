@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import ipaddress
 import time
 from collections.abc import Callable
 
@@ -32,8 +33,34 @@ LIMITS: dict[str, tuple[int, int]] = {
 }
 
 
-def _identity(request: Request) -> str:
+def _client_ip(request: Request, settings) -> str:
     peer = request.client.host if request.client else "unknown"
+    try:
+        peer_address = ipaddress.ip_address(peer)
+    except ValueError:
+        return peer
+
+    trusted_ranges = []
+    for item in (getattr(settings, "trusted_proxy_ips", "") or "").split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            trusted_ranges.append(ipaddress.ip_network(item, strict=False))
+        except ValueError:
+            continue
+    if not any(peer_address in network for network in trusted_ranges):
+        return peer
+
+    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    try:
+        return str(ipaddress.ip_address(forwarded))
+    except ValueError:
+        return peer
+
+
+def _identity(request: Request, settings) -> str:
+    peer = _client_ip(request, settings)
     subject = "anonymous"
     authorization = request.headers.get("authorization", "")
     if authorization.lower().startswith("bearer "):
@@ -76,7 +103,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         limit, window_seconds = rule
-        identity = _identity(request)
+        settings = getattr(request.app.state, "settings", None)
+        identity = _identity(request, settings)
         key = f"aiph:ratelimit:{identity}"
         redis_client = getattr(request.app.state, "rate_limit_redis", None)
 
@@ -87,7 +115,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
                 retry_after = max(1, int((int(ttl_ms) + 999) / 1000))
             except Exception:
-                if request.app.state.settings.app_env.lower() == "production":
+                if settings is not None and settings.app_env.lower() == "production":
                     return JSONResponse(
                         status_code=503,
                         content={"detail": "Rate-limit service unavailable; retry shortly"},
@@ -95,7 +123,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     )
                 count, retry_after = await self._memory_hit(key, window_seconds)
         else:
-            settings = getattr(request.app.state, "settings", None)
             if settings is not None and settings.app_env.lower() == "production":
                 return JSONResponse(
                     status_code=503,
