@@ -28,6 +28,19 @@ type PaymentEvent = {
   received_at: string;
 };
 
+type PaymentOrder = {
+  id: number;
+  reference: string;
+  user_id: number;
+  amount_minor_units: number;
+  refunded_amount_minor_units: number;
+  currency: string;
+  status: string;
+  provider_tracker: string | null;
+  created_at: string;
+  paid_at: string | null;
+};
+
 type AIRequest = {
   id: number;
   user_id: number;
@@ -98,7 +111,7 @@ export default function AdminConsole() {
   const [checkingRole, setCheckingRole] = useState(true);
   const [offers, setOffers] = useState<SupplierOffer[]>([]);
   const [requests, setRequests] = useState<AIRequest[]>([]);
-  const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([]);
+  const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([]);\n  const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -111,22 +124,25 @@ export default function AdminConsole() {
   const [contractVerified, setContractVerified] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [offerResponse, requestResponse, paymentResponse] = await Promise.all([
+    const [offerResponse, requestResponse, paymentResponse, ordersResponse] = await Promise.all([
       fetch("/api/admin/supplier-offers", { cache: "no-store" }),
       fetch("/api/admin/ai-requests", { cache: "no-store" }),
       fetch("/api/admin/payment-events", { cache: "no-store" }),
+      fetch("/api/admin/payment-orders", { cache: "no-store" }),
     ]);
-    const [offerData, requestData, paymentData] = await Promise.all([
+    const [offerData, requestData, paymentData, orderData] = await Promise.all([
       offerResponse.json().catch(() => ({})),
       requestResponse.json().catch(() => ({})),
       paymentResponse.json().catch(() => ({})),
+      ordersResponse.json().catch(() => ({})),
     ]);
-    if (!offerResponse.ok || !requestResponse.ok || !paymentResponse.ok) {
-      throw new Error(offerData.detail || requestData.detail || paymentData.detail || "Could not load admin data");
+    if (!offerResponse.ok || !requestResponse.ok || !paymentResponse.ok || !ordersResponse.ok) {
+      throw new Error(offerData.detail || requestData.detail || paymentData.detail || orderData.detail || "Could not load admin data");
     }
     setOffers(offerData as SupplierOffer[]);
     setRequests(requestData as AIRequest[]);
     setPaymentEvents(paymentData as PaymentEvent[]);
+    setPaymentOrders(orderData as PaymentOrder[]);
   }, []);
 
   useEffect(() => {
@@ -323,6 +339,25 @@ export default function AdminConsole() {
           {requests.length === 0 ? <div className="chat-empty">No AI requests are waiting for reconciliation.</div> : null}
         </section>
       </div>
+
+      <section className="admin-section admin-payment-orders">
+        <h3>Payment orders and refund ledger</h3>
+        <p>Refund amounts are cumulative provider-confirmed reversals. Negative customer credit balances represent credits already consumed before a verified refund.</p>
+        {paymentOrders.map((order) => (
+          <article className="admin-payment-row" key={order.id}>
+            <div>
+              <strong>Order #{order.id} · {order.reference}</strong>
+              <small>User #{order.user_id} · {order.provider_tracker || "Tracker pending"}</small>
+              <small>{new Date(order.created_at).toLocaleString()}</small>
+            </div>
+            <div>
+              <strong>{order.amount_minor_units.toLocaleString()} {order.currency}</strong>
+              <small>Refunded: {order.refunded_amount_minor_units.toLocaleString()} · {order.status}</small>
+            </div>
+          </article>
+        ))}
+        {paymentOrders.length === 0 ? <div className="chat-empty">No payment orders recorded.</div> : null}
+      </section>
 
       <section className="admin-section admin-payment-events">
         <h3>Safepay webhook event inbox</h3>
