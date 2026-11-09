@@ -385,7 +385,7 @@ def delete_conversation(
     # Keep financial/audit request rows, but erase the conversation text.
     db.execute(update(AIRequest).where(
         AIRequest.conversation_id == conversation.id
-    ).values(conversation_id=None, response_text=None))
+    ).values(conversation_id=None, response_text=None, request_hash="0" * 64))
     db.execute(delete(ConversationMessage).where(
         ConversationMessage.conversation_id == conversation.id
     ))
