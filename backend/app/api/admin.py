@@ -17,9 +17,10 @@ from backend.app.schemas import (
     PaymentWebhookEventResponse,
     AIRequestAdminResponse,
     AIRequestReconcileRequest,
+    AIRequestReleaseRequest,
 )
 from backend.app.services.pricing import PricingInputs, calculate_retail_price
-from backend.app.services.credits import grant_credits, settle_reservation
+from backend.app.services.credits import grant_credits, release_reservation, settle_reservation
 from backend.app.services.pricing import calculate_token_retail_charge
 
 router = APIRouter(prefix="/api/v1/admin", tags=["administration"])
@@ -221,6 +222,47 @@ def reconcile_ai_request(
     ai_request.completion_tokens = payload.completion_tokens
     ai_request.credits_charged = actual_charge
     ai_request.status = "completed"
+    ai_request.reconciliation_evidence = payload.evidence_reference.strip()
+    ai_request.reconciled_by_user_id = admin.id
+    ai_request.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(ai_request)
+    return ai_request
+
+
+
+@router.post(
+    "/ai-requests/{request_id}/release",
+    response_model=AIRequestAdminResponse,
+)
+def release_ai_request_hold(
+    request_id: int,
+    payload: AIRequestReleaseRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AIRequest:
+    ai_request = db.scalar(
+        select(AIRequest).where(AIRequest.id == request_id).with_for_update()
+    )
+    if ai_request is None:
+        raise HTTPException(status_code=404, detail="AI request not found")
+    if ai_request.status != "reconciliation_required" or ai_request.reservation_id is None:
+        raise HTTPException(status_code=409, detail="AI request is not awaiting reconciliation")
+    reservation = db.get(CreditReservation, ai_request.reservation_id)
+    if reservation is None or reservation.status != "reserved":
+        raise HTTPException(status_code=409, detail="Credit reservation is not available for release")
+    try:
+        release_reservation(
+            db,
+            user_id=ai_request.user_id,
+            reservation_id=reservation.id,
+            actor_user_id=admin.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    ai_request.status = "failed"
+    ai_request.error_code = "admin_released_hold"
     ai_request.reconciliation_evidence = payload.evidence_reference.strip()
     ai_request.reconciled_by_user_id = admin.id
     ai_request.completed_at = datetime.now(timezone.utc)
