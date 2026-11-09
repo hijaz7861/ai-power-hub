@@ -34,6 +34,9 @@ export default function AuthPanel() {
   const [topupAmount, setTopupAmount] = useState("100");
   const [topupError, setTopupError] = useState("");
   const [topupBusy, setTopupBusy] = useState(false);
+  const [closePassword, setClosePassword] = useState("");
+  const [closeError, setCloseError] = useState("");
+  const [closeBusy, setCloseBusy] = useState(false);
 
   const refreshAccount = useCallback(async () => {
     const response = await fetch("/api/account", { cache: "no-store" });
@@ -123,6 +126,31 @@ export default function AuthPanel() {
     }
   }
 
+  async function closeAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCloseBusy(true);
+    setCloseError("");
+    try {
+      if (!window.confirm("Permanently close this account? Your saved conversations will be erased and you will be signed out. Financial records are retained for reconciliation.")) {
+        return;
+      }
+      const response = await fetch("/api/account/close", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: closePassword }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.detail || "Account closure failed");
+      setAccount(null);
+      setClosePassword("");
+      window.dispatchEvent(new Event("aiph:auth-changed"));
+    } catch (cause) {
+      setCloseError(cause instanceof Error ? cause.message : "Account closure failed");
+    } finally {
+      setCloseBusy(false);
+    }
+  }
+
   if (checking) return <section className="account-panel"><span className="account-muted">Checking account session…</span></section>;
 
   if (account) {
@@ -144,6 +172,15 @@ export default function AuthPanel() {
           <button className="account-button" type="submit" disabled={topupBusy}>{topupBusy ? "Preparing checkout…" : "Continue to secure payment"}</button>
           <small>Minimum PKR 100 · 1 credit = PKR 0.01 · payment confirmation is webhook-based</small>
           {topupError ? <p className="auth-error" role="alert">{topupError}</p> : null}
+        </form>
+        <form className="account-close-form" onSubmit={closeAccount}>
+          <strong>Close account permanently</strong>
+          <small>This erases saved conversation content and disables sign-in. Financial records are retained for reconciliation. Any non-zero credit balance, pending payment, or unsettled AI request must be resolved first.</small>
+          <label>Confirm your password
+            <input type="password" autoComplete="current-password" required minLength={1} maxLength={128} value={closePassword} onChange={(event) => setClosePassword(event.target.value)} />
+          </label>
+          {closeError ? <p className="auth-error" role="alert">{closeError}</p> : null}
+          <button className="account-button danger" type="submit" disabled={closeBusy}>{closeBusy ? "Closing account…" : "Permanently close account"}</button>
         </form>
         {account.ledger.length > 0 ? (
           <div className="ledger-preview">
