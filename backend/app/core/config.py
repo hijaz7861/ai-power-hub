@@ -28,8 +28,10 @@ class Settings(BaseSettings):
                 raise RuntimeError("A production SECRET_KEY of at least 32 characters is required")
             if self.debug:
                 raise RuntimeError("DEBUG must be false in production")
-            if self.public_app_url and not self.public_app_url.startswith("https://"):
-                raise RuntimeError("PUBLIC_APP_URL must use HTTPS in production")
+            if not self.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+                raise RuntimeError("A PostgreSQL DATABASE_URL is required in production")
+            if not self.public_app_url.startswith("https://"):
+                raise RuntimeError("PUBLIC_APP_URL must be a public HTTPS URL in production")
 
 @lru_cache
 def get_settings() -> Settings:
