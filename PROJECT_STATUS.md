@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-09
 
-## Current milestone: prepaid multi-turn AI, payment accounting, recovery and privacy controls
+## Current milestone: prepaid multi-turn AI, payments, recovery and customer privacy
 
 ### Implemented in feat/backend-foundation
 - [x] FastAPI, SQLAlchemy and Alembic migrations through 0010
@@ -13,53 +13,53 @@ Last updated: 2026-11-09
 - [x] HTTPS-only OpenAI-compatible async adapter with mocked HTTP tests
 - [x] Customer account dashboard and HttpOnly SameSite=Strict session cookies
 - [x] Same-origin validation for cookie-authenticated login, registration, logout, AI, payment, admin and conversation-delete mutations
-- [x] Production frontend requires an explicit APP_ORIGIN for same-origin mutation checks
-- [x] Production backend rejects SQLite and requires PostgreSQL plus a public HTTPS URL
+- [x] Production frontend requires explicit APP_ORIGIN for same-origin mutation checks
+- [x] Browser security headers: nosniff, frame denial, referrer policy, permissions policy, production HSTS and no-store API responses
+- [x] Production backend rejects SQLite and requires PostgreSQL, a strong SECRET_KEY, DEBUG=false and public HTTPS PUBLIC_APP_URL
 - [x] Sign-in/sign-out events refresh chat history and role-gated admin workspace
 - [x] Safepay PKR top-up and signed-webhook settlement foundation
 - [x] Idempotent payment success settlement and duplicate success protection, including after a refund
 - [x] Verified partial/full Safepay refund events reverse purchased credits through negative ledger entries
-- [x] Cumulative refund amount bounded by the original payment; refunds require exact tracker, order reference, currency and consistent full/partial tracker state
+- [x] Cumulative refund amount bounded by original payment; exact tracker, order reference, currency and full/partial state must match
 - [x] If credits were already consumed before refund, balance can become negative and paid AI use remains blocked until replenished
-- [x] Admin-only payment order and cumulative refund inbox
-- [x] Admin-only Safepay webhook event audit inbox
+- [x] Admin-only payment order/refund inbox and Safepay webhook event audit inbox
 - [x] Credit reservation before metered AI calls, with idempotent reserve/capture/release
 - [x] Customer chat completion API for OpenAI and Mistral-compatible endpoints
-- [x] Public model catalogue exposes only models with configured server credentials and matching active, PKR, contract-verified input/output rate offers
-- [x] Customer-facing chat panel with model selection, response rendering, credit accounting and conversation switching
-- [x] Persistent customer-owned conversations and multi-turn provider context
-- [x] Conversation history endpoints enforce account ownership
-- [x] Customer can delete an owned conversation; stored messages and cached response text are erased while financial/audit request rows remain
+- [x] Public model catalogue exposes only models with configured server credentials and matching active PKR input/output rate offers
+- [x] Customer chat panel with model selection, response rendering, credit accounting and conversation switching
+- [x] Persistent customer-owned conversations and multi-turn provider context; history endpoints enforce ownership
+- [x] Customer can delete an owned conversation; stored messages, cached responses and request-content fingerprints are erased while financial/audit rows remain
 - [x] Conversation deletion is blocked while an AI request is processing
+- [x] Authenticated account export endpoint and customer-facing JSON download for profile, credit ledger, payment orders, AI usage and stored conversations
 - [x] Actual provider token usage is priced through the integer-safe retail pricing engine
 - [x] Provider failures release the full hold; unused reservation is returned after settlement
 - [x] Completed AI responses are persisted so client retries do not issue duplicate paid calls
 - [x] Missing usage or usage above the authorized hold is marked reconciliation_required; funds remain held
-- [x] Admin-only reconciliation inbox and evidence-referenced settlement endpoint; release ledger entries identify the admin actor
-- [x] Admin recovery workflow for processing requests older than ten minutes
+- [x] Admin-only reconciliation and evidence-referenced settlement/release controls
+- [x] Admin recovery inbox for processing requests older than ten minutes
 - [x] Recovery links orphaned reservations by idempotency key; reserved funds remain held for human provider-usage reconciliation
 - [x] Recovery never auto-releases a hold when a provider may have completed a billable request
-- [x] Admin Console UI for supplier rates, contract attestation, AI reconciliation/recovery, exceptional hold release, payment orders/refunds and Safepay webhook audit
+- [x] Admin Console UI for supplier rates, contract attestation, AI reconciliation/recovery, exceptional hold release, payment orders/refunds and webhook audit
 - [x] Provider catalogue distinguishes available OpenAI/Mistral adapter code from integrations not implemented
 
 ### Latest verified GitHub Actions
-- [x] Backend CI #499: 85 tests passed; Alembic migrations 0001 through 0010 passed
-- [x] Frontend CI #259: TypeScript type check and Next.js production build passed
-- [ ] Browser end-to-end test of registration, login, checkout, multi-turn chat, refund and deletion
+- [x] Backend CI #522: 87 tests passed; Alembic migrations 0001 through 0010 passed
+- [x] Frontend CI #275: TypeScript type check and Next.js production build passed
+- [ ] Browser end-to-end test of registration, login, checkout, multi-turn chat, refund, export and deletion
 - [ ] Termux-native install and runtime confirmed
 
 ### Remaining engineering and operational gates
-- [ ] Full account export and account closure/data-erasure workflow, with lawful financial/audit retention policy
-- [ ] Safepay merchant-side reconciliation against provider tracker/report, refund disputes and chargebacks
+- [ ] Account closure/deactivation and erasure policy, while retaining legally required financial/audit records
+- [ ] Safepay merchant-side reconciliation against provider tracker/report, refund execution, disputes and chargebacks
 - [ ] Real Safepay sandbox transaction and signed webhook delivery
 - [ ] Live OpenAI/Mistral provider calls and provider-side usage reconciliation
 - [ ] Subscription plans, renewals, cancellation and plan enforcement
 - [ ] PostgreSQL production rollout, backup/restore drills and connection-pool sizing
-- [ ] Rate limiting, abuse controls, request-size/time limits, security headers and centralized monitoring
+- [ ] Rate limiting, abuse controls, request-size/time limits and centralized monitoring
 - [ ] Email verification, password reset, token revocation/rotation and account recovery
 - [ ] Anthropic/Gemini native adapters and image/audio/video integrations
 - [ ] Opt-in contributor node agent, sandbox, quotas, work verification and payout settlement
-- [ ] Security/privacy review, browser end-to-end tests, production deployment and monitoring
+- [ ] Independent security/privacy review, browser end-to-end tests, production deployment and monitoring
 - [ ] Termux-native install and runtime verification
 
 ## Operational and commercial limitations
@@ -68,7 +68,8 @@ Last updated: 2026-11-09
 - contract_status=verified is an administrator attestation based on an external signed agreement; software does not independently verify resale rights.
 - If provider usage is missing or exceeds the authorized reservation, funds remain held for reconciliation. Admin settlement/release requires external evidence and administrator attestation.
 - Safepay refund processing is based on signed webhook events and mocked CI tests; no merchant sandbox/live transaction has been executed.
-- A refund can create a negative credit balance when credits have already been spent. This is an internal credit reversal, not a bank-account debit or an automated refund payout to the payer.
-- Production config now fails closed unless PostgreSQL, a random SECRET_KEY, HTTPS PUBLIC_APP_URL and frontend APP_ORIGIN are configured. No production environment has yet been provisioned or deployed.
+- A refund can create a negative credit balance when credits have already been spent. This is an internal credit reversal, not an automated refund payout to the payer's bank/card.
+- Production config fails closed unless PostgreSQL, strong SECRET_KEY, HTTPS PUBLIC_APP_URL and frontend APP_ORIGIN are configured. No production environment has yet been provisioned or deployed.
+- Account export is implemented; deletion from the app database does not control provider-side retention or replace a legally reviewed privacy policy.
 - No production deployment, live commercial service or revenue-generation claim is made.
-- Keep PR #1 Draft/Open until live provider/payment checks, independent review, security and deployment gates are complete.
+- Keep PR #1 Draft/Open until live provider/payment checks, independent review and deployment gates are complete.

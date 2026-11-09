@@ -18,17 +18,18 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 - Customer registration/login and role-based admin authorization.
 - Credit accounts, auditable ledger, idempotent grants/debits and customer-scoped history.
 - Integer-minor-unit pricing engine and admin-managed supplier wholesale offers.
-- OpenAI-compatible async adapter and prepaid chat endpoint for OpenAI and Mistral.
-- Customer-facing chat panel with verified model catalogue, multi-turn conversation history and conversation switching.
+- OpenAI-compatible adapter and prepaid chat endpoint for OpenAI and Mistral.
+- Customer-facing chat panel with model selection, persistent multi-turn history and conversation switching.
 - Credit reservation before a provider call, actual-usage settlement and unused-credit release.
 - Idempotent AI request records so a retry does not call the paid provider twice.
-- Admin recovery inbox for stale AI executions; a reserved hold remains held until provider-side usage is checked.
-- Customer conversation deletion erases stored messages and cached response text while preserving financial/audit request rows.
-- Admin Console for supplier token rates, AI reconciliation, payment orders, cumulative refund totals and Safepay webhook event audit.
+- Admin recovery inbox for stale AI executions; reserved holds remain held until provider-side usage is checked.
+- Customer conversation deletion erases stored messages, cached response text and request-content fingerprints while preserving financial/audit rows.
+- Authenticated account export download for profile, credit ledger, payment orders, AI usage and stored conversations.
+- Admin Console for supplier token rates, AI reconciliation/recovery, payment orders, cumulative refund totals and Safepay webhook event audit.
 - Safepay top-up and signed-webhook settlement foundation.
 - Verified partial/full Safepay refund webhook events reverse purchased credits with event idempotency and a bounded cumulative refund total.
-- Same-origin checks on cookie-authenticated mutation routes.
-- Next.js customer account panel and server-managed HttpOnly session cookies.
+- Same-origin validation for cookie-authenticated mutations and browser security headers.
+- Production configuration fails closed unless PostgreSQL, a strong secret, public HTTPS URL and frontend APP_ORIGIN are configured.
 
 ## Enabling a metered chat model
 
@@ -42,7 +43,7 @@ The public model catalogue lists only models with configured credentials and com
 
 Credits are reserved before the paid provider call. After a response with valid token usage, the platform calculates the retail charge, captures it and releases the unused reserve. A retry with the same idempotency key returns the stored completed response rather than issuing another paid request.
 
-Conversation history is stored under the customer account. The API checks ownership before returning a thread and includes prior turns in subsequent provider requests. Customers can delete individual conversations; this removes stored message text and cached response text but retains financial/audit request metadata. Full account export/closure and a published privacy policy remain to be implemented.
+Conversation history is stored under the customer account. Customers can delete individual conversations; stored messages, cached response text and request-content fingerprints are removed, while financial/audit request metadata remains. The account export endpoint is GET /api/v1/account/export; the customer dashboard provides a download link. Provider-side retention is outside this application's control, and a reviewed privacy policy/account-closure workflow remains necessary.
 
 ## Safepay refund accounting
 
@@ -74,7 +75,7 @@ python -m pytest -q
 
 ## Database and production configuration
 
-SQLite is for local development and tests only. Production startup rejects SQLite and requires PostgreSQL, a random SECRET_KEY of at least 32 characters, DEBUG=false, and a public HTTPS PUBLIC_APP_URL.
+SQLite is for local development and tests only. Production startup rejects SQLite and requires PostgreSQL, a random SECRET_KEY of at least 32 characters, DEBUG=false and a public HTTPS PUBLIC_APP_URL.
 
 Install the optional PostgreSQL driver from requirements-postgres.txt and configure a SQLAlchemy URL such as:
 
@@ -82,12 +83,12 @@ Install the optional PostgreSQL driver from requirements-postgres.txt and config
 postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 ```
 
-The Next.js cookie-authenticated backend-for-frontend rejects cross-origin mutations. Set frontend APP_ORIGIN to the exact public origin (for example, https://ai.example.com) in production. Do not commit secrets or paste them into chat; configure them through the hosting provider's secret manager.
+The Next.js cookie-authenticated backend-for-frontend rejects cross-origin mutations. Set frontend APP_ORIGIN to the exact public origin (for example, https://ai.example.com) in production. Browser security headers include frame denial, MIME sniffing protection, referrer policy, restricted permissions, production HSTS and no-store API responses. Configure all secrets through the hosting provider's secret manager; never commit them.
 
 ## Verification and security
 
-- Backend CI #499: 85 tests passed; Alembic migrations 0001–0010 passed.
-- Frontend CI #259: TypeScript check and Next.js production build passed.
+- Backend CI #522: 87 tests passed; Alembic migrations 0001–0010 passed.
+- Frontend CI #275: TypeScript check and Next.js production build passed.
 - Live OpenAI/Mistral calls, Safepay sandbox transactions, browser end-to-end testing and production deployment have not been performed.
 - Provider adapters and mocked CI tests do not establish live supplier access, resale rights, production readiness or revenue.
 - A verified supplier contract state is an administrator attestation, not independent legal verification.
