@@ -20,6 +20,10 @@ def list_providers() -> dict:
             "name": name,
             "credential_configured": bool(getattr(settings, key_attribute)),
             "capabilities_status": "requires_live_model_discovery",
-            "integration_status": "adapter_not_implemented",
+            "integration_status": (
+                "adapter_available_model_rate_required"
+                if provider_id in {"openai", "mistral"}
+                else "adapter_not_implemented"
+            ),
         })
     return {"items": items, "count": len(items)}
