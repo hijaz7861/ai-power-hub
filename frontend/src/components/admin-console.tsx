@@ -173,22 +173,26 @@ export default function AdminConsole() {
   async function reconcile(id: number, promptTokens: number, completionTokens: number, evidence: string) {
     setError("");
     setNotice("");
-    const response = await fetch("/api/admin/ai-requests/" + id + "/reconcile", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        prompt_tokens: promptTokens,
-        completion_tokens: completionTokens,
-        evidence_reference: evidence,
-      }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setError(result.detail || "Reconciliation failed");
-      return;
+    try {
+      const response = await fetch("/api/admin/ai-requests/" + id + "/reconcile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          evidence_reference: evidence,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(result.detail || "Reconciliation failed");
+        return;
+      }
+      setNotice("AI request #" + id + " reconciled. Credits have been settled using the stored rate snapshot.");
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Reconciliation service unavailable");
     }
-    setNotice("AI request #" + id + " reconciled. Credits have been settled using the stored rate snapshot.");
-    await refresh();
   }
 
   if (checkingRole || !isAdmin) return null;
