@@ -8,8 +8,6 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ conversationId: string }> },
 ) {
-  const rejected = rejectCrossOriginMutation(request);
-  if (rejected) return rejected;
   const store = await cookies();
   const token = store.get("aiph_session")?.value;
   if (!token) return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
@@ -34,6 +32,8 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ conversationId: string }> },
 ) {
+  const rejected = rejectCrossOriginMutation(request);
+  if (rejected) return rejected;
   const store = await cookies();
   const token = store.get("aiph_session")?.value;
   if (!token) return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
