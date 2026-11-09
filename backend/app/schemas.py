@@ -141,3 +141,28 @@ class PaymentOrderStatusResponse(BaseModel):
     status: str
     created_at: datetime
     paid_at: datetime | None
+
+
+class ChatMessageInput(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str = Field(min_length=1, max_length=32768)
+
+
+class ChatCompletionRequest(BaseModel):
+    provider: Literal["openai", "mistral"]
+    model: str = Field(min_length=1, max_length=120, pattern=r"^[a-zA-Z0-9._:-]+$")
+    messages: list[ChatMessageInput] = Field(min_length=1, max_length=32)
+    max_tokens: int = Field(default=1024, ge=1, le=2048)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class ChatCompletionResponse(BaseModel):
+    request_id: int
+    provider: str
+    model: str
+    content: str
+    prompt_tokens: int
+    completion_tokens: int
+    credits_charged: int
+    credits_refunded: int
+    balance: int
