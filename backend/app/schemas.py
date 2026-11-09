@@ -240,3 +240,7 @@ class PaymentOrderAdminResponse(BaseModel):
     provider_tracker: str | None
     created_at: datetime
     paid_at: datetime | None
+
+
+class AIRequestRecoveryRequest(BaseModel):
+    evidence_reference: str = Field(min_length=8, max_length=255)
