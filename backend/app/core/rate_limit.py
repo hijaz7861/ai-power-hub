@@ -33,7 +33,7 @@ LIMITS: dict[str, tuple[int, int]] = {
 }
 
 
-def _client_ip(request: Request, settings) -> str:
+def _client_ip(request: Request, settings) -> str | None:
     peer = request.client.host if request.client else "unknown"
     try:
         peer_address = ipaddress.ip_address(peer)
@@ -56,11 +56,13 @@ def _client_ip(request: Request, settings) -> str:
     try:
         return str(ipaddress.ip_address(forwarded))
     except ValueError:
-        return peer
+        return None
 
 
-def _identity(request: Request, settings) -> str:
+def _identity(request: Request, settings) -> str | None:
     peer = _client_ip(request, settings)
+    if peer is None:
+        return None
     subject = "anonymous"
     authorization = request.headers.get("authorization", "")
     if authorization.lower().startswith("bearer "):
@@ -105,6 +107,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         limit, window_seconds = rule
         settings = getattr(request.app.state, "settings", None)
         identity = _identity(request, settings)
+        if identity is None:
+            if settings is not None and settings.app_env.lower() == "production":
+                return JSONResponse(
+                    status_code=503,
+                    content={"detail": "Trusted proxy did not provide a valid client IP"},
+                    headers={"Retry-After": "5", "Cache-Control": "no-store"},
+                )
+            peer = request.client.host if request.client else "unknown"
+            identity = hashlib.sha256(
+                f"{request.method}:{request.url.path}:{peer}:development-fallback".encode("utf-8")
+            ).hexdigest()
         key = f"aiph:ratelimit:{identity}"
         redis_client = getattr(request.app.state, "rate_limit_redis", None)
 
