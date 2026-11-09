@@ -225,3 +225,140 @@ def test_safepay_payment_mismatch_never_credits_account(client, test_db, monkeyp
         order = db.scalar(select(PaymentOrder).where(PaymentOrder.reference == "order-reference-002"))
         assert account.balance == 0
         assert order.status == "pending"
+
+
+def test_safepay_partial_and_full_refunds_reverse_credits_once(client, test_db, monkeypatch):
+    configure_webhook(monkeypatch)
+    credentials = {"email": "refund-owner@example.com", "password": "a-long-test-password"}
+    assert client.post("/api/v1/auth/register", json=credentials).status_code == 201
+
+    with test_db() as db:
+        user = db.scalar(select(User).where(User.email == credentials["email"]))
+        user_id = user.id
+        db.add(PaymentOrder(
+            reference="refund-order-001",
+            user_id=user_id,
+            amount_minor_units=15000,
+            currency="PKR",
+            provider="safepay",
+            status="pending",
+            idempotency_key="refund-order-key-001",
+            provider_tracker="track_refund_001",
+        ))
+        db.commit()
+
+    def send(event):
+        body = json.dumps(event, separators=(",", ":")).encode()
+        return client.post(
+            "/api/v1/webhooks/safepay",
+            content=body,
+            headers=signed_headers(body),
+        )
+
+    paid = {
+        "token": "evt_refund_payment_success",
+        "merchant_api_key": MERCHANT_KEY,
+        "type": "payment.succeeded",
+        "data": {
+            "tracker": "track_refund_001",
+            "state": "TRACKER_ENDED",
+            "amount": 15000,
+            "currency": "PKR",
+            "metadata": {"order_id": "refund-order-001"},
+        },
+    }
+    assert send(paid).status_code == 202
+
+    partial = {
+        "token": "evt_refund_partial_001",
+        "merchant_api_key": MERCHANT_KEY,
+        "type": "payment.refunded",
+        "data": {
+            "tracker": "track_refund_001",
+            "state": "TRACKER_PARTIAL_REFUND",
+            "refund_amount": 5000,
+            "currency": "PKR",
+            "metadata": {"order_id": "refund-order-001"},
+        },
+    }
+    assert send(partial).status_code == 202
+    assert send(partial).json()["duplicate"] is True
+
+    full = {
+        "token": "evt_refund_final_001",
+        "merchant_api_key": MERCHANT_KEY,
+        "type": "payment.refunded",
+        "data": {
+            "tracker": "track_refund_001",
+            "state": "TRACKER_REFUNDED",
+            "refund_amount": 10000,
+            "currency": "PKR",
+            "metadata": {"order_id": "refund-order-001"},
+        },
+    }
+    assert send(full).status_code == 202
+
+    # A later duplicate success event must never re-credit an already-paid order.
+    paid_again = {**paid, "token": "evt_refund_payment_success_redelivery"}
+    assert send(paid_again).status_code == 202
+
+    with test_db() as db:
+        account = db.scalar(select(CreditAccount).where(CreditAccount.user_id == user_id))
+        order = db.scalar(select(PaymentOrder).where(PaymentOrder.reference == "refund-order-001"))
+        entries = list(db.scalars(
+            select(CreditLedger).where(CreditLedger.user_id == user_id).order_by(CreditLedger.id)
+        ).all())
+        assert account.balance == 0
+        assert order.status == "refunded"
+        assert order.refunded_amount_minor_units == 15000
+        assert [entry.amount for entry in entries] == [15000, -5000, -10000]
+        assert [entry.entry_type for entry in entries] == ["payment", "refund", "refund"]
+
+
+def test_safepay_refund_with_wrong_reference_or_excess_amount_never_reverses(client, test_db, monkeypatch):
+    configure_webhook(monkeypatch)
+    credentials = {"email": "refund-mismatch@example.com", "password": "a-long-test-password"}
+    client.post("/api/v1/auth/register", json=credentials)
+    with test_db() as db:
+        user = db.scalar(select(User).where(User.email == credentials["email"]))
+        user_id = user.id
+        db.add(PaymentOrder(
+            reference="refund-order-002",
+            user_id=user_id,
+            amount_minor_units=15000,
+            currency="PKR",
+            provider="safepay",
+            status="succeeded",
+            idempotency_key="refund-order-key-002",
+            provider_tracker="track_refund_002",
+        ))
+        db.commit()
+
+    event = {
+        "token": "evt_refund_bad_reference",
+        "merchant_api_key": MERCHANT_KEY,
+        "type": "payment.refunded",
+        "data": {
+            "tracker": "track_refund_002",
+            "state": "TRACKER_REFUNDED",
+            "refund_amount": 15001,
+            "currency": "PKR",
+            "metadata": {"order_id": "different-order"},
+        },
+    }
+    body = json.dumps(event).encode()
+    assert client.post(
+        "/api/v1/webhooks/safepay",
+        content=body,
+        headers=signed_headers(body),
+    ).status_code == 202
+    with test_db() as db:
+        account = db.scalar(select(CreditAccount).where(CreditAccount.user_id == user_id))
+        order = db.scalar(select(PaymentOrder).where(PaymentOrder.reference == "refund-order-002"))
+        event_record = db.scalar(select(PaymentWebhookEvent).where(
+            PaymentWebhookEvent.event_token == "evt_refund_bad_reference"
+        ))
+        assert account.balance == 0
+        assert order.refunded_amount_minor_units == 0
+        assert order.status == "succeeded"
+        assert event_record.processing_status == "refund_review"
