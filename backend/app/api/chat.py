@@ -271,7 +271,8 @@ def list_available_chat_models(db: Session = Depends(get_db)) -> dict:
     for (_, provider, model), units in grouped.items():
         if {"per_1k_input_tokens", "per_1k_output_tokens"}.issubset(units):
             credential_configured = bool(getattr(settings, f"{provider}_api_key", ""))
-            items.add((provider, model, credential_configured))
+            if credential_configured:
+                items.add((provider, model, True))
     return {
         "items": [
             {"provider": provider, "model": model, "credential_configured": configured}
