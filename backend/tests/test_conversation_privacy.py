@@ -59,6 +59,7 @@ def test_customer_can_delete_owned_conversation_and_erase_message_content(client
         ))
         assert request.conversation_id is None
         assert request.response_text is None
+        assert request.request_hash == "0" * 64
         assert request.status == "completed"
 
 
