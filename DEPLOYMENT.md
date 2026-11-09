@@ -27,6 +27,10 @@ Set at minimum:
 - PUBLIC_APP_URL=https://your-real-domain
 - APP_ORIGIN=https://your-real-domain (exact origin, no path)
 - WEB_BIND_ADDRESS=127.0.0.1
+
+The Compose network assigns the frontend a fixed internal address and configures that exact address as the backend's trusted proxy. The frontend forwards the ingress X-Forwarded-For header to the API; the backend ignores it unless the direct TCP peer is in TRUSTED_PROXY_IPS. Configure the public TLS reverse proxy to overwrite X-Forwarded-For with the actual connecting client IP, never append an untrusted client-supplied value. The default Compose subnet is 172.30.0.0/24; if it conflicts with an existing network, change the subnet and all four static service addresses plus TRUSTED_PROXY_IPS together.
+
+For deployments outside this Compose stack, set TRUSTED_PROXY_IPS to the exact proxy address/CIDR. Do not trust broad public or shared networks.
 - WEB_PORT=3000
 
 Keep DATABASE_URL and REDIS_URL in the environment managed by Compose; the backend service overrides them with internal service addresses. The frontend API_BASE_URL is also set to the internal backend service. The .env file must never be committed or copied into an image.
