@@ -12,6 +12,7 @@ Last updated: 2026-11-09
 - [x] Integer-safe wholesale-to-retail pricing engine and admin supplier-offer registry
 - [x] HTTPS-only OpenAI-compatible async adapter with mocked HTTP tests
 - [x] Customer account dashboard and HttpOnly SameSite=Strict session cookies
+- [x] Sign-in/sign-out events refresh the chat history and role-gated admin workspace
 - [x] Safepay PKR top-up and signed-webhook settlement foundation
 - [x] Admin-only Safepay webhook event audit inbox
 - [x] Credit reservation before metered AI calls, with idempotent reserve/capture/release
@@ -25,13 +26,12 @@ Last updated: 2026-11-09
 - [x] Completed AI responses are persisted so client retries do not issue duplicate paid calls
 - [x] Missing provider usage or usage above the authorized hold is marked reconciliation_required; funds remain held
 - [x] Admin-only reconciliation inbox and evidence-referenced settlement endpoint; release ledger entries identify the admin actor
-- [x] Admin Console UI for supplier rates, contract attestation, AI reconciliation and exceptional hold release
+- [x] Admin Console UI for supplier rates, contract attestation, AI reconciliation, exceptional hold release and Safepay webhook audit
 - [x] Provider catalogue distinguishes available OpenAI/Mistral adapter code from integrations not implemented
 
 ### Latest verified GitHub Actions
 - [x] Backend CI #402: 72 tests passed; Alembic migrations 0001 through 0009 passed
-- [x] Frontend CI #186: TypeScript type check and Next.js production build passed for the chat-history and admin payment-event inbox implementation
-- [ ] Re-run Frontend CI after the final new-conversation selector adjustment
+- [x] Frontend CI #197: TypeScript type check and Next.js production build passed
 - [ ] Live OpenAI/Mistral provider calls and provider-side usage reconciliation
 - [ ] Real Safepay sandbox transaction and signed webhook delivery
 - [ ] Browser end-to-end test of registration, login, checkout, multi-turn chat and balance refresh
@@ -40,7 +40,7 @@ Last updated: 2026-11-09
 ### Remaining engineering milestones
 - [ ] Admin payment-order management, receipts, refunds and chargebacks
 - [ ] Safe recovery/replay workflow for interrupted in-progress AI requests
-- [ ] Customer conversation retention/export/deletion controls and privacy policy
+- [ ] Customer conversation retention/export/deletion controls and published privacy policy
 - [ ] Safepay reporter reconciliation and refund/chargeback dispute state machine
 - [ ] Subscription plans, renewals, cancellation and plan enforcement
 - [ ] PostgreSQL production rollout and backup/restore validation
