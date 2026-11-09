@@ -243,3 +243,35 @@ async def create_chat_completion(
         credits_refunded=reservation.reserved_amount - actual_charge,
         balance=get_balance(db, user.id),
     )
+
+
+@router.get("/models")
+def list_available_chat_models(db: Session = Depends(get_db)) -> dict:
+    """Expose only models with both active, verified PKR token-rate offers."""
+    offers = list(db.scalars(
+        select(SupplierOffer).where(
+            SupplierOffer.service_type == "ai_api",
+            SupplierOffer.provider_code.in_(tuple(PROVIDER_ENDPOINTS)),
+            SupplierOffer.model_code.is_not(None),
+            SupplierOffer.currency == "PKR",
+            SupplierOffer.contract_status == "verified",
+            SupplierOffer.is_active.is_(True),
+        )
+    ).all())
+    grouped: dict[tuple[str, str, str], set[str]] = {}
+    for offer in offers:
+        key = (offer.supplier_code, offer.provider_code, offer.model_code or "")
+        grouped.setdefault(key, set()).add(offer.billing_unit)
+    settings = get_settings()
+    items = set()
+    for (_, provider, model), units in grouped.items():
+        if {"per_1k_input_tokens", "per_1k_output_tokens"}.issubset(units):
+            credential_configured = bool(getattr(settings, f"{provider}_api_key", ""))
+            items.add((provider, model, credential_configured))
+    return {
+        "items": [
+            {"provider": provider, "model": model, "credential_configured": configured}
+            for provider, model, configured in sorted(items)
+        ],
+        "count": len(items),
+    }
