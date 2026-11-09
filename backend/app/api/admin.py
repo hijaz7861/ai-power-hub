@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -5,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.api.auth import require_admin
 from backend.app.core.database import get_db
-from backend.app.models import PaymentWebhookEvent, SupplierOffer, User
+from backend.app.models import AIRequest, CreditReservation, PaymentWebhookEvent, SupplierOffer, User
 from backend.app.schemas import (
     SupplierOfferCreate,
     SupplierOfferResponse,
@@ -14,9 +15,12 @@ from backend.app.schemas import (
     AdminCreditGrantRequest,
     AdminCreditGrantResponse,
     PaymentWebhookEventResponse,
+    AIRequestAdminResponse,
+    AIRequestReconcileRequest,
 )
 from backend.app.services.pricing import PricingInputs, calculate_retail_price
-from backend.app.services.credits import grant_credits
+from backend.app.services.credits import grant_credits, settle_reservation
+from backend.app.services.pricing import calculate_token_retail_charge
 
 router = APIRouter(prefix="/api/v1/admin", tags=["administration"])
 
@@ -138,3 +142,88 @@ def list_payment_events(
     return list(db.scalars(
         select(PaymentWebhookEvent).order_by(PaymentWebhookEvent.id.desc()).limit(limit)
     ).all())
+
+
+
+@router.get("/ai-requests", response_model=list[AIRequestAdminResponse])
+def list_ai_requests(
+    request_status: str = "reconciliation_required",
+    limit: int = 50,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[AIRequest]:
+    allowed = {"processing", "completed", "failed", "reconciliation_required"}
+    if request_status not in allowed:
+        raise HTTPException(status_code=422, detail="Unsupported AI request status")
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 100")
+    return list(db.scalars(
+        select(AIRequest)
+        .where(AIRequest.status == request_status)
+        .order_by(AIRequest.id.desc())
+        .limit(limit)
+    ).all())
+
+
+@router.post(
+    "/ai-requests/{request_id}/reconcile",
+    response_model=AIRequestAdminResponse,
+)
+def reconcile_ai_request(
+    request_id: int,
+    payload: AIRequestReconcileRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AIRequest:
+    ai_request = db.scalar(
+        select(AIRequest).where(AIRequest.id == request_id).with_for_update()
+    )
+    if ai_request is None:
+        raise HTTPException(status_code=404, detail="AI request not found")
+    if ai_request.status != "reconciliation_required" or ai_request.reservation_id is None:
+        raise HTTPException(status_code=409, detail="AI request is not awaiting reconciliation")
+    if ai_request.prompt_tokens is not None and ai_request.prompt_tokens != payload.prompt_tokens:
+        raise HTTPException(status_code=409, detail="Prompt token count conflicts with provider record")
+    if ai_request.completion_tokens is not None and ai_request.completion_tokens != payload.completion_tokens:
+        raise HTTPException(status_code=409, detail="Completion token count conflicts with provider record")
+
+    reservation = db.get(CreditReservation, ai_request.reservation_id)
+    if reservation is None or reservation.status != "reserved":
+        raise HTTPException(status_code=409, detail="Credit reservation is not available for settlement")
+    try:
+        actual_charge = calculate_token_retail_charge(
+            input_rate_minor_units=ai_request.input_rate_minor_units,
+            output_rate_minor_units=ai_request.output_rate_minor_units,
+            prompt_tokens=payload.prompt_tokens,
+            completion_tokens=payload.completion_tokens,
+            target_margin_bps=ai_request.target_margin_bps,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    if actual_charge > reservation.reserved_amount:
+        raise HTTPException(
+            status_code=422,
+            detail="Verified usage exceeds the original authorization; obtain a new customer authorization before charging",
+        )
+
+    try:
+        settle_reservation(
+            db,
+            user_id=ai_request.user_id,
+            reservation_id=reservation.id,
+            actual_amount=actual_charge,
+            actor_user_id=admin.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    ai_request.prompt_tokens = payload.prompt_tokens
+    ai_request.completion_tokens = payload.completion_tokens
+    ai_request.credits_charged = actual_charge
+    ai_request.status = "completed"
+    ai_request.reconciliation_evidence = payload.evidence_reference.strip()
+    ai_request.reconciled_by_user_id = admin.id
+    ai_request.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(ai_request)
+    return ai_request
