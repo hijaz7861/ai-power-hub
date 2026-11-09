@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     safepay_environment: str = "sandbox"
     public_app_url: str = ""
     redis_url: str = ""
+    trusted_proxy_ips: str = ""
 
     def validate_runtime(self) -> None:
         if self.safepay_environment not in {"sandbox", "production"}:
