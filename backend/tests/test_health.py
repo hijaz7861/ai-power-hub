@@ -17,8 +17,9 @@ def test_health_endpoint() -> None:
     assert response.json() == {"status": "ok", "service": "ai-power-hub-api"}
 
 
-def test_readiness_endpoint_is_explicit_about_unconfigured_checks() -> None:
+def test_readiness_endpoint_checks_database_and_marks_development_redis_optional() -> None:
     response = client.get("/ready")
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
-    assert response.json()["checks"] == "not_yet_configured"
+    assert response.json()["checks"]["database"] == "ok"
+    assert response.json()["checks"]["redis"] == "optional_in_development"
