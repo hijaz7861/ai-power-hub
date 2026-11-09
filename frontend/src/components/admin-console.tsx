@@ -15,6 +15,19 @@ type SupplierOffer = {
   is_active: boolean;
 };
 
+type PaymentEvent = {
+  id: number;
+  event_type: string;
+  tracker_token: string | null;
+  order_reference: string | null;
+  provider_state: string | null;
+  payment_order_id: number | null;
+  amount_minor_units: number | null;
+  currency: string | null;
+  processing_status: string;
+  received_at: string;
+};
+
 type AIRequest = {
   id: number;
   user_id: number;
@@ -85,6 +98,7 @@ export default function AdminConsole() {
   const [checkingRole, setCheckingRole] = useState(true);
   const [offers, setOffers] = useState<SupplierOffer[]>([]);
   const [requests, setRequests] = useState<AIRequest[]>([]);
+  const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -97,19 +111,22 @@ export default function AdminConsole() {
   const [contractVerified, setContractVerified] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [offerResponse, requestResponse] = await Promise.all([
+    const [offerResponse, requestResponse, paymentResponse] = await Promise.all([
       fetch("/api/admin/supplier-offers", { cache: "no-store" }),
       fetch("/api/admin/ai-requests", { cache: "no-store" }),
+      fetch("/api/admin/payment-events", { cache: "no-store" }),
     ]);
-    const [offerData, requestData] = await Promise.all([
+    const [offerData, requestData, paymentData] = await Promise.all([
       offerResponse.json().catch(() => ({})),
       requestResponse.json().catch(() => ({})),
+      paymentResponse.json().catch(() => ({})),
     ]);
-    if (!offerResponse.ok || !requestResponse.ok) {
-      throw new Error(offerData.detail || requestData.detail || "Could not load admin data");
+    if (!offerResponse.ok || !requestResponse.ok || !paymentResponse.ok) {
+      throw new Error(offerData.detail || requestData.detail || paymentData.detail || "Could not load admin data");
     }
     setOffers(offerData as SupplierOffer[]);
     setRequests(requestData as AIRequest[]);
+    setPaymentEvents(paymentData as PaymentEvent[]);
   }, []);
 
   useEffect(() => {
@@ -276,6 +293,25 @@ export default function AdminConsole() {
           {requests.length === 0 ? <div className="chat-empty">No AI requests are waiting for reconciliation.</div> : null}
         </section>
       </div>
+
+      <section className="admin-section admin-payment-events">
+        <h3>Safepay webhook event inbox</h3>
+        <p>Signed provider events are retained for audit. A browser return is not payment confirmation; only the verified webhook can settle a top-up.</p>
+        {paymentEvents.map((event) => (
+          <article className="admin-payment-row" key={event.id}>
+            <div>
+              <strong>{event.event_type}</strong>
+              <small>Order: {event.order_reference || "unmatched"} · Tracker: {event.tracker_token || "not supplied"}</small>
+              <small>{event.provider_state || "No provider state"} · {new Date(event.received_at).toLocaleString()}</small>
+            </div>
+            <div>
+              <strong>{event.amount_minor_units == null ? "—" : event.amount_minor_units.toLocaleString() + " " + (event.currency || "")}</strong>
+              <small>{event.processing_status}</small>
+            </div>
+          </article>
+        ))}
+        {paymentEvents.length === 0 ? <div className="chat-empty">No Safepay webhook events received.</div> : null}
+      </section>
     </section>
   );
 }
