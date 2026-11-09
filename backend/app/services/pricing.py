@@ -92,3 +92,29 @@ def calculate_retail_price(inputs: PricingInputs) -> PriceQuote:
         projected_profit=projected_profit,
         projected_margin_bps=margin_bps,
     )
+
+
+def calculate_token_retail_charge(
+    *,
+    input_rate_minor_units: int,
+    output_rate_minor_units: int,
+    prompt_tokens: int,
+    completion_tokens: int,
+    target_margin_bps: int = 1500,
+) -> int:
+    """Calculate a metered chat charge from per-1k token wholesale rates."""
+    values = (input_rate_minor_units, output_rate_minor_units, prompt_tokens, completion_tokens)
+    if any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in values):
+        raise ValueError("token rates and usage must be non-negative integers")
+    if input_rate_minor_units == 0 or output_rate_minor_units == 0:
+        raise ValueError("both input and output token rates must be configured")
+    provider_cost = (
+        (input_rate_minor_units * prompt_tokens + 999) // 1000
+        + (output_rate_minor_units * completion_tokens + 999) // 1000
+    )
+    if provider_cost == 0:
+        return 0
+    return calculate_retail_price(PricingInputs(
+        provider_cost=provider_cost,
+        target_margin_bps=target_margin_bps,
+    )).retail_price
