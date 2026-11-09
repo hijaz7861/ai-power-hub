@@ -155,10 +155,12 @@ class ChatCompletionRequest(BaseModel):
     messages: list[ChatMessageInput] = Field(min_length=1, max_length=32)
     max_tokens: int = Field(default=1024, ge=1, le=2048)
     idempotency_key: str = Field(min_length=8, max_length=128)
+    conversation_id: int | None = Field(default=None, gt=0)
 
 
 class ChatCompletionResponse(BaseModel):
     request_id: int
+    conversation_id: int
     provider: str
     model: str
     content: str
@@ -198,3 +200,29 @@ class AIRequestReconcileRequest(BaseModel):
 
 class AIRequestReleaseRequest(BaseModel):
     evidence_reference: str = Field(min_length=8, max_length=255)
+
+
+
+class ConversationSummaryResponse(BaseModel):
+    id: int
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    role: str
+    content: str
+    provider: str | None
+    model: str | None
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    credits_charged: int
+    created_at: datetime
+
+
+class ConversationDetailResponse(BaseModel):
+    conversation: ConversationSummaryResponse
+    messages: list[ConversationMessageResponse]
