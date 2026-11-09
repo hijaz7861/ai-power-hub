@@ -40,11 +40,13 @@ def _ceil_rate(rate_per_1k: int, tokens: int) -> int:
 
 
 def _retail_charge(input_rate: int, output_rate: int, prompt_tokens: int,
-                   completion_tokens: int) -> int:
+                   completion_tokens: int, target_margin_bps: int = 1500) -> int:
     wholesale = _ceil_rate(input_rate, prompt_tokens) + _ceil_rate(output_rate, completion_tokens)
     if wholesale == 0:
         return 0
-    return calculate_retail_price(PricingInputs(provider_cost=wholesale)).retail_price
+    return calculate_retail_price(PricingInputs(
+        provider_cost=wholesale, target_margin_bps=target_margin_bps
+    )).retail_price
 
 
 def _find_verified_rate_pair(db: Session, provider: str, model: str) -> tuple[int, int] | None:
@@ -142,6 +144,9 @@ async def create_chat_completion(
         provider=payload.provider,
         model=payload.model,
         status="processing",
+        input_rate_minor_units=input_rate,
+        output_rate_minor_units=output_rate,
+        target_margin_bps=1500,
     )
     db.add(ai_request)
     try:
@@ -197,6 +202,7 @@ async def create_chat_completion(
         ai_request.status = "reconciliation_required"
         ai_request.error_code = "provider_usage_missing"
         ai_request.provider_request_id = result.request_id
+        ai_request.response_text = result.content
         db.commit()
         raise HTTPException(
             status_code=502,
@@ -210,6 +216,7 @@ async def create_chat_completion(
         ai_request.status = "reconciliation_required"
         ai_request.error_code = "usage_exceeded_reservation"
         ai_request.provider_request_id = result.request_id
+        ai_request.response_text = result.content
         ai_request.prompt_tokens = result.prompt_tokens
         ai_request.completion_tokens = result.completion_tokens
         db.commit()
