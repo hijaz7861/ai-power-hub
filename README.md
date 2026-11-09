@@ -2,33 +2,42 @@
 
 **One Platform. All AI Capabilities.**
 
-A modular, multi-provider AI SaaS ecosystem. The repository is currently in its foundational backend phase; it is not yet a production-ready commercial service.
+A modular multi-provider AI SaaS platform under active development. It is not yet a production-ready commercial service.
 
-## Product scope
+## Product direction
 
-Planned categories include AI chat/reasoning, image, video, audio, coding, education, research, document intelligence, agents, and business automation. Each feature will be labelled according to its real implementation and provider status.
+One workspace for AI chat and reasoning, image, video, audio, coding, education, research, document intelligence, agents and business automation. A capability is labelled operational only after its provider integration and end-to-end behavior are verified.
 
 ## Initial business model
 
-The proposed entry plan starts at **PKR 100/month**. Credit limits and plan economics must be set from verified provider and infrastructure costs; unlimited expensive usage is not included.
+The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; plans and limits must be set against verified provider and infrastructure costs. Unlimited expensive usage is not included.
 
-## Current implementation
+## Implemented foundation
 
-- FastAPI API foundation.
-- SQLAlchemy user and credit data models.
-- Registration, login, and bearer-token profile endpoint.
-- Authenticated credit balance.
-- Credit debit domain primitive with idempotency protection.
-- Provider configuration catalogue with explicit non-operational status until a live call is verified.
-- HTTPS-only OpenAI-compatible async adapter with mocked HTTP tests; no live supplier credentials are included.
-- Admin role protection and a CLI-only bootstrap command for promoting an existing account.
-- Admin-only supplier wholesale-offer registry, commercial-contract activation gate, and retail-price preview using the integer-safe pricing engine.
-- Admin-only manual credit adjustments with idempotency and an actor-linked audit ledger.
-- Authenticated customer credit history endpoint scoped to the signed-in account.
-- Safepay signed webhook inbox using raw-body HMAC-SHA512 verification, event deduplication and minimal event metadata storage; this does not yet create payment orders or credit customer accounts.
-- Frontend registration/login/logout through Next.js server routes and HttpOnly, SameSite=Strict session cookies; account panel displays balance and recent credit activity.
-- Alembic initial database migration.
-- Automated backend tests and GitHub Actions workflow.
+- FastAPI, SQLAlchemy and Alembic migrations through 0007.
+- Customer registration/login and role-based admin authorization.
+- Credit accounts, auditable ledger, idempotent grants/debits and customer-scoped history.
+- Integer-minor-unit pricing engine and admin-managed supplier wholesale offers.
+- OpenAI-compatible async adapter and prepaid chat endpoint for OpenAI and Mistral.
+- Credit reservation before a provider call, actual-usage settlement and unused-credit release.
+- Idempotent AI request records so a retry does not call the paid provider twice.
+- Requests with missing or over-limit provider usage are held for reconciliation instead of silently charging an unsupported amount.
+- Safepay top-up and signed-webhook settlement foundation (mock-tested only).
+- Next.js customer account panel and server-managed HttpOnly session cookies.
+
+## Enabling a metered chat model
+
+The endpoint is POST /api/v1/chat/completions. It requires:
+1. A server-side OPENAI_API_KEY or MISTRAL_API_KEY.
+2. Two matching supplier offers for the exact provider/model: per_1k_input_tokens and per_1k_output_tokens.
+3. Both offers must be active, PKR-denominated and have contract_status=verified.
+4. An authenticated customer with enough credits for the maximum estimated request cost.
+
+The verified contract state is an administrator assertion, not automatic legal verification. Do not activate an offer until supplier terms and resale rights have been checked externally.
+
+Credits are reserved before the paid provider call. After a response with valid token usage, the platform calculates the retail charge, captures it and releases the unused reserve. A retry with the same idempotency key returns the stored completed response rather than issuing another paid request.
+
+If token usage is missing or exceeds the authorized reserve, the request is marked reconciliation_required and the hold remains in place. An admin reconciliation interface is not yet implemented.
 
 ## Local development
 
@@ -39,12 +48,12 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 cp .env.example .env
-# Set a long random SECRET_KEY in .env before using authentication.
+# Set a cryptographically random SECRET_KEY before using authentication.
 python -m alembic upgrade head
 python -m uvicorn backend.app.main:app --reload
 ```
 
-API documentation is available at `/docs` while the local server is running.
+API documentation is available at /docs.
 
 Run tests:
 
@@ -54,26 +63,21 @@ python -m pytest -q
 
 ## Database
 
-SQLite is for local development and tests. Production must use PostgreSQL and run Alembic migrations before application startup.
+SQLite is for local development and tests. Production must use PostgreSQL, run Alembic migrations before application startup, and validate backups/restores.
 
-For PostgreSQL, install the optional driver from `requirements-postgres.txt` and configure a SQLAlchemy URL such as `postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME`.
+Install the optional PostgreSQL driver from requirements-postgres.txt and configure a SQLAlchemy URL such as:
 
-```bash
-python -m alembic upgrade head
+```
+postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 ```
 
-## Security
+## Security and operational status
 
-- Never commit real API keys, passwords, tokens, database credentials, or production secrets.
-- Keep `.env` out of Git.
-- Use a cryptographically random `SECRET_KEY` of at least 32 characters in production.
-- Production schema changes must use reviewed migrations.
-- Provider integrations are not considered operational until live credentials, calls, cost accounting, and tests are verified.
+- Never commit real API keys, passwords, tokens, database credentials or production secrets.
+- Keep .env out of Git. Configure provider credentials on the backend only.
+- Use a random SECRET_KEY of at least 32 characters in production.
+- Do not trust a browser redirect as payment confirmation; Safepay credits are granted only by the signed, matching webhook.
+- Provider adapters and mocked CI tests do not establish live supplier access, resale rights, production readiness or revenue.
+- No production deployment or live payment/provider transaction has been verified.
 
-## Status
-
-**Current phase:** Backend foundation, first domain primitives, and initial frontend dashboard.
-
-**Not yet implemented:** verified live supplier/API calls and resale agreements, payment gateway and credit purchase settlement, subscription enforcement, customer-facing chat execution, frontend authentication, email verification, password recovery, rate limiting, PostgreSQL production rollout, production deployment, and operational monitoring.
-
-Only verified functionality will be marked operational.
+See PROJECT_STATUS.md for current verification gates.
