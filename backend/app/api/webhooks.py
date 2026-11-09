@@ -180,15 +180,21 @@ async def receive_safepay_webhook(
                 amount_valid = amount is not None and amount > 0
                 currency_matches = currency == matched_order.currency
                 order_is_paid = matched_order.paid_at is not None
-                within_original_payment = (
-                    matched_order.refunded_amount_minor_units + (amount or 0)
-                    <= matched_order.amount_minor_units
+                cumulative_refund = matched_order.refunded_amount_minor_units + (amount or 0)
+                within_original_payment = cumulative_refund <= matched_order.amount_minor_units
+                state_matches_cumulative = (
+                    provider_state == "TRACKER_REFUNDED"
+                    and cumulative_refund == matched_order.amount_minor_units
+                ) or (
+                    provider_state == "TRACKER_PARTIAL_REFUND"
+                    and cumulative_refund < matched_order.amount_minor_units
                 )
                 if not (
                     identifiers_match
                     and amount_valid
                     and currency_matches
                     and refund_state_valid
+                    and state_matches_cumulative
                     and order_is_paid
                     and within_original_payment
                 ):
@@ -226,6 +232,7 @@ async def receive_safepay_webhook(
         else:
             record.processing_status = "unmatched"
 
+    record.processed_at = utc_now()
     try:
         db.commit()
     except IntegrityError:
