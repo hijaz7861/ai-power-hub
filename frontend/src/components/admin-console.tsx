@@ -139,8 +139,8 @@ export default function AdminConsole() {
   async function createOffer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cost = Number(wholesaleCost);
-    if (!Number.isSafeInteger(cost) || cost <= 0 || !model.trim()) {
-      setError("Enter a valid model id and positive whole-paisa wholesale rate.");
+    if (!Number.isSafeInteger(cost) || cost <= 0 || !model.trim() || !contractVerified) {
+      setError("Enter a valid model id, positive whole-paisa rate, and confirm verified supplier resale rights.");
       return;
     }
     setBusy(true);
@@ -159,8 +159,8 @@ export default function AdminConsole() {
           billing_unit: billingUnit,
           currency: "PKR",
           wholesale_cost_minor_units: cost,
-          contract_status: contractVerified ? "verified" : "pending",
-          is_active: contractVerified,
+          contract_status: "verified",
+          is_active: true,
         }),
       });
       const result = await response.json().catch(() => ({}));
@@ -246,7 +246,7 @@ export default function AdminConsole() {
             <label>Exact model id<input required minLength={1} maxLength={120} value={model} onChange={(event) => setModel(event.target.value)} placeholder="Approved model id" /></label>
             <label>Billing unit<select value={billingUnit} onChange={(event) => setBillingUnit(event.target.value as "per_1k_input_tokens" | "per_1k_output_tokens")}><option value="per_1k_input_tokens">Input tokens / 1k</option><option value="per_1k_output_tokens">Output tokens / 1k</option></select></label>
             <label>Wholesale cost (paisa)<input type="number" min="1" step="1" required value={wholesaleCost} onChange={(event) => setWholesaleCost(event.target.value)} /></label>
-            <label className="admin-verify-check"><input type="checkbox" checked={contractVerified} onChange={(event) => setContractVerified(event.target.checked)} /> I have independently verified the supplier contract and resale rights.</label>
+            <label className="admin-verify-check"><input type="checkbox" required checked={contractVerified} onChange={(event) => setContractVerified(event.target.checked)} /> I have independently verified the supplier contract and resale rights.</label>
             <button className="account-button" type="submit" disabled={busy}>{busy ? "Saving…" : "Save supplier rate"}</button>
           </form>
           <div className="admin-offer-list">
