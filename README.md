@@ -28,6 +28,7 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 - Password-confirmed account closure with login revocation, identity anonymization and stored chat-content erasure; financial/audit rows remain for reconciliation.
 - Account closure is blocked while credit balances, payment orders, AI requests or reservations remain unsettled.
 - Redis-backed distributed rate limits for login, registration, AI chat, top-ups and account closure; local development can use an in-memory fallback.
+- Production trusts forwarded client IPs only from the explicitly configured frontend proxy CIDR; missing/invalid proxy forwarding fails closed.
 - Admin Console for supplier token rates, AI reconciliation/recovery, payment orders, cumulative refund totals and Safepay webhook event audit.
 - Safepay top-up and signed-webhook settlement foundation.
 - Verified partial/full Safepay refund webhook events reverse purchased credits with event idempotency and a bounded cumulative refund total.
@@ -89,19 +90,19 @@ postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 
 The backend CI includes a PostgreSQL 16 service that upgrades all migrations through 0011, downgrades to base and re-upgrades to head. This validates the migration chain against PostgreSQL; it is not a production backup/restore drill.
 
-Sensitive routes use Redis-backed fixed-window rate limits in production. A process-local in-memory fallback is used only for development and is not suitable for multi-worker or multi-instance production. The limiter keys use the direct network peer and authenticated principal; forwarded IP headers are not trusted by the app.
+Sensitive routes use Redis-backed fixed-window rate limits in production. A process-local in-memory fallback is used only for development and is not suitable for multi-worker or multi-instance production. The limiter keys use the authenticated principal and direct peer; forwarded IP headers are accepted only when the direct peer matches TRUSTED_PROXY_IPS. The ingress proxy must overwrite X-Forwarded-For with the actual client IP. Production startup requires a valid trusted proxy CIDR.
 
 The Next.js cookie-authenticated backend-for-frontend rejects cross-origin mutations. Set frontend APP_ORIGIN to the exact public origin (for example, https://ai.example.com) in production. Browser security headers include frame denial, MIME sniffing protection, referrer policy, restricted permissions, production HSTS and no-store API responses. Configure all secrets through the hosting provider's secret manager; never commit them.
 
 ## Docker Compose deployment
 
-See DEPLOYMENT.md for host prerequisites, secret generation, Compose startup, reverse-proxy requirements and backup/restore procedures. The Compose stack binds the frontend to 127.0.0.1 by default and does not publish PostgreSQL, Redis or the backend API ports. Docker Compose syntax is validated in CI; container image build/run and production deployment still require a real host.
+See DEPLOYMENT.md for host prerequisites, secret generation, Compose startup, reverse-proxy requirements and backup/restore procedures. The Compose stack binds the frontend to 127.0.0.1 by default and does not publish PostgreSQL, Redis or the backend API ports. Docker Compose syntax is validated in CI; container image build/run and production deployment still require a real host. The API trusts forwarded client IPs only from the fixed frontend container address, and the ingress proxy must overwrite X-Forwarded-For.
 
 ## Verification and security
 
-- Backend CI #600: 99 tests passed; SQLite migration validation passed.
-- Backend CI #600 PostgreSQL 16 job: upgrade, downgrade and re-upgrade passed.
-- Frontend CI #318: TypeScript check and Next.js production build passed.
+- Backend CI #635: 103 tests passed; SQLite migration validation passed.
+- Backend CI #635 PostgreSQL 16 job: upgrade, downgrade and re-upgrade passed.
+- Frontend CI #339: TypeScript check and Next.js production build passed.
 - Live OpenAI/Mistral calls, Safepay sandbox transactions, browser end-to-end testing and production deployment have not been performed.
 - Provider adapters and mocked CI tests do not establish live supplier access, resale rights, production readiness or revenue.
 - A verified supplier contract state is an administrator attestation, not independent legal verification.
