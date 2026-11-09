@@ -14,7 +14,7 @@ export async function POST(
   const token = store.get("aiph_session")?.value;
   if (!token) return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
   const { requestId } = await context.params;
-  if (!/^\\d+$/.test(requestId)) {
+  if (!/^\d+$/.test(requestId)) {
     return NextResponse.json({ detail: "Invalid request id" }, { status: 400 });
   }
   let body: unknown;
