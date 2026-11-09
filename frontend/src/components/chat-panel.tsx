@@ -104,6 +104,44 @@ export default function ChatPanel() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const refreshHistory = async () => {
+      try {
+        const response = await fetch("/api/chat/conversations", { cache: "no-store" });
+        if (!response.ok) {
+          if (active && response.status === 401) {
+            setConversations([]);
+            setConversationId(null);
+            setHistory([]);
+          }
+          return;
+        }
+        const items = (await response.json()) as ConversationSummary[];
+        if (!active) return;
+        setConversations(items);
+        if (!items.length) {
+          setConversationId(null);
+          setHistory([]);
+          return;
+        }
+        const detailResponse = await fetch("/api/chat/conversations/" + items[0].id, { cache: "no-store" });
+        if (!detailResponse.ok) return;
+        const detail = await detailResponse.json();
+        if (!active) return;
+        setConversationId(detail.conversation.id);
+        setHistory(detail.messages as ConversationMessage[]);
+      } catch {
+        // Keep the current view if the history refresh is temporarily unavailable.
+      }
+    };
+    window.addEventListener("aiph:auth-changed", refreshHistory);
+    return () => {
+      active = false;
+      window.removeEventListener("aiph:auth-changed", refreshHistory);
+    };
+  }, []);
+
   const selected = useMemo(
     () => models.find((item) => item.provider + ":" + item.model === selectedKey),
     [models, selectedKey],
