@@ -183,7 +183,10 @@ export default function AdminConsole() {
       }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.detail || "Reconciliation failed");
+    if (!response.ok) {
+      setError(result.detail || "Reconciliation failed");
+      return;
+    }
     setNotice("AI request #" + id + " reconciled. Credits have been settled using the stored rate snapshot.");
     await refresh();
   }
