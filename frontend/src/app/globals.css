@@ -198,3 +198,11 @@ h1{font:700 27px Manrope,sans-serif;margin:7px 0 0}
 
 .account-actions{display:flex;gap:8px;flex-wrap:wrap}
 .account-actions .account-button{flex:1;text-align:center;text-decoration:none}
+
+
+.account-close-form{display:grid;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border,#d8dce3)}
+.account-close-form>strong{font-size:.92rem}
+.account-close-form>small{line-height:1.5;color:var(--muted,#6b7280)}
+.account-close-form label{display:grid;gap:6px;font-size:.84rem}
+.account-close-form input{width:100%;min-width:0}
+.account-button.danger{background:#8b2424;color:#fff;border-color:#8b2424}
