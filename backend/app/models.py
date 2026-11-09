@@ -106,3 +106,27 @@ class PaymentOrder(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class CreditReservation(Base):
+    """Funds reserved before a metered provider call and settled exactly once."""
+    __tablename__ = "credit_reservations"
+    __table_args__ = (
+        UniqueConstraint("user_id", "idempotency_key", name="uq_credit_reservation_user_key"),
+        CheckConstraint("reserved_amount > 0", name="ck_credit_reservation_positive"),
+        CheckConstraint("captured_amount >= 0 AND captured_amount <= reserved_amount",
+                        name="ck_credit_reservation_capture_range"),
+        CheckConstraint("status IN ('reserved', 'captured', 'released')",
+                        name="ck_credit_reservation_status"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"),
+                                         nullable=False, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    reserved_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    captured_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="reserved")
+    description: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
