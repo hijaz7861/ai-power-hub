@@ -14,15 +14,15 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 
 ## Implemented foundation
 
-- FastAPI, SQLAlchemy and Alembic migrations through 0008.
+- FastAPI, SQLAlchemy and Alembic migrations through 0009.
 - Customer registration/login and role-based admin authorization.
 - Credit accounts, auditable ledger, idempotent grants/debits and customer-scoped history.
 - Integer-minor-unit pricing engine and admin-managed supplier wholesale offers.
 - OpenAI-compatible async adapter and prepaid chat endpoint for OpenAI and Mistral.
-- Customer-facing chat panel with model catalogue, request submission, response display and charge/balance details.
+- Customer-facing chat panel with verified model catalogue, multi-turn conversation history and conversation switching.
 - Credit reservation before a provider call, actual-usage settlement and unused-credit release.
 - Idempotent AI request records so a retry does not call the paid provider twice.
-- Admin-only reconciliation inbox and settlement endpoint for requests with unresolved provider usage.
+- Admin Console for supplier token rates, reconciliation inbox, evidence-referenced settlement and exceptional hold release.
 - Safepay top-up and signed-webhook settlement foundation (mock-tested only).
 - Next.js customer account panel and server-managed HttpOnly session cookies.
 
@@ -38,7 +38,9 @@ The public model catalogue lists only models with configured credentials and com
 
 Credits are reserved before the paid provider call. After a response with valid token usage, the platform calculates the retail charge, captures it and releases the unused reserve. A retry with the same idempotency key returns the stored completed response rather than issuing another paid request.
 
-If token usage is missing or exceeds the authorized reserve, the request is marked reconciliation_required and the hold remains in place. An admin-only API inbox and evidence-referenced reconciliation endpoint are implemented; the admin dashboard UI is not yet available.
+Conversation history is stored under the customer account. The API checks ownership before returning a thread and includes prior turns in subsequent provider requests. Customer retention/export/deletion controls and a published privacy policy remain to be implemented.
+
+If token usage is missing or exceeds the authorized reserve, the request is marked reconciliation_required and the hold remains in place. An admin-only inbox and evidence-referenced reconciliation/hold-release controls are available; evidence is an administrator attestation and must be checked externally.
 
 ## Local development
 
@@ -74,8 +76,8 @@ postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 
 ## Verification and security
 
-- Latest Backend CI #334: 69 tests passed; migrations 0001–0008 passed.
-- Latest Frontend CI #134: TypeScript and production build passed.
+- Latest Backend CI #393: 72 tests passed; migrations 0001–0009 passed.
+- Latest Frontend CI #179: TypeScript and production build passed.
 - Never commit real API keys, passwords, tokens, database credentials or production secrets.
 - Keep .env out of Git. Configure provider credentials on the backend only.
 - Use a random SECRET_KEY of at least 32 characters in production.
