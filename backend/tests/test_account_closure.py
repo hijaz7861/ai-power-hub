@@ -3,6 +3,7 @@ from sqlalchemy import select
 from backend.app.core.security import create_access_token, hash_password
 from backend.app.models import (
     AIRequest,
+    CreditReservation,
     Conversation,
     ConversationMessage,
     CreditAccount,
@@ -135,5 +136,69 @@ def test_administrator_must_transfer_role_before_closing_account(client, test_db
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 409
+    with test_db() as db:
+        assert db.get(User, user_id).is_active is True
+
+
+
+def test_account_closure_refuses_unsettled_ai_reconciliation(client, test_db):
+    with test_db() as db:
+        user = User(
+            email="close-reconcile@example.com",
+            password_hash=hash_password("a-long-test-password"),
+        )
+        user.credit_account = CreditAccount(balance=0)
+        db.add(user)
+        db.flush()
+        db.add(AIRequest(
+            user_id=user.id,
+            idempotency_key="close-reconcile-001",
+            request_hash="b" * 64,
+            provider="openai",
+            model="test-model",
+            status="reconciliation_required",
+        ))
+        user_id = user.id
+        db.commit()
+    token = create_access_token(str(user_id))
+    response = client.post(
+        "/api/v1/account/close",
+        json={"password": "a-long-test-password"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 409
+    assert "AI request" in response.json()["detail"]
+    with test_db() as db:
+        assert db.get(User, user_id).is_active is True
+
+
+def test_account_closure_refuses_pending_payment(client, test_db):
+    with test_db() as db:
+        user = User(
+            email="close-payment@example.com",
+            password_hash=hash_password("a-long-test-password"),
+        )
+        user.credit_account = CreditAccount(balance=0)
+        db.add(user)
+        db.flush()
+        db.add(PaymentOrder(
+            reference="close-payment-reference",
+            user_id=user.id,
+            amount_minor_units=10000,
+            currency="PKR",
+            provider="safepay",
+            status="pending",
+            idempotency_key="close-payment-001",
+        ))
+        user_id = user.id
+        db.commit()
+    token = create_access_token(str(user_id))
+    response = client.post(
+        "/api/v1/account/close",
+        json={"password": "a-long-test-password"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 409
+    assert "payment is still pending" in response.json()["detail"]
     with test_db() as db:
         assert db.get(User, user_id).is_active is True
