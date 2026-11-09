@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.api.auth import require_admin
 from backend.app.core.database import get_db
-from backend.app.models import AIRequest, CreditReservation, PaymentWebhookEvent, SupplierOffer, User
+from backend.app.models import AIRequest, ConversationMessage, CreditReservation, PaymentWebhookEvent, SupplierOffer, User
 from backend.app.schemas import (
     SupplierOfferCreate,
     SupplierOfferResponse,
@@ -225,6 +225,14 @@ def reconcile_ai_request(
     ai_request.reconciliation_evidence = payload.evidence_reference.strip()
     ai_request.reconciled_by_user_id = admin.id
     ai_request.completed_at = datetime.now(timezone.utc)
+    assistant_message = db.scalar(select(ConversationMessage).where(
+        ConversationMessage.request_id == ai_request.id,
+        ConversationMessage.role == "assistant",
+    ))
+    if assistant_message is not None:
+        assistant_message.prompt_tokens = payload.prompt_tokens
+        assistant_message.completion_tokens = payload.completion_tokens
+        assistant_message.credits_charged = actual_charge
     db.commit()
     db.refresh(ai_request)
     return ai_request
