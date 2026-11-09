@@ -27,7 +27,7 @@ def test_forwarded_ip_is_used_only_when_direct_peer_is_trusted():
     assert _client_ip(untrusted_request, trusted_settings) == "192.0.2.5"
 
 
-def test_invalid_forwarded_ip_falls_back_to_direct_peer():
+def test_invalid_forwarded_ip_is_rejected_for_trusted_proxy():
     settings = SimpleNamespace(trusted_proxy_ips="10.20.0.0/16")
     request = _request_from_peer("10.20.1.5", "not-an-ip")
-    assert _client_ip(request, settings) == "10.20.1.5"
+    assert _client_ip(request, settings) is None
