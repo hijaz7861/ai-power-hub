@@ -73,7 +73,7 @@ function ReconciliationForm({
       <button className="account-button" type="submit" disabled={busy}>
         {busy ? "Settling…" : "Verify and settle hold"}
       </button>
-      <button className="account-button secondary" type="button" disabled={busy || evidence.trim().length < 8} onClick={() => onRelease(item.id, evidence.trim())}>
+      <button className="account-button secondary" type="button" disabled={busy || evidence.trim().length < 8} onClick={async () => { setBusy(true); try { await onRelease(item.id, evidence.trim()); } finally { setBusy(false); } }}>
         Release full hold (platform absorbs cost)
       </button>
     </form>
