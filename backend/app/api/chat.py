@@ -1,4 +1,4 @@
-"""Authenticated, prepaid and idempotent AI chat execution."""
+"""Authenticated, prepaid AI chat with customer-owned conversation history."""
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -11,8 +11,21 @@ from sqlalchemy.orm import Session
 from backend.app.api.auth import get_current_user
 from backend.app.core.config import get_settings
 from backend.app.core.database import get_db
-from backend.app.models import AIRequest, SupplierOffer, User
-from backend.app.schemas import ChatCompletionRequest, ChatCompletionResponse
+from backend.app.models import (
+    AIRequest,
+    Conversation,
+    ConversationMessage,
+    CreditReservation,
+    SupplierOffer,
+    User,
+)
+from backend.app.schemas import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ConversationDetailResponse,
+    ConversationMessageResponse,
+    ConversationSummaryResponse,
+)
 from backend.app.services.credits import (
     InsufficientCreditsError,
     get_balance,
@@ -76,11 +89,11 @@ def _completed_response(request: AIRequest, db: Session) -> ChatCompletionRespon
         )
     reserved = 0
     if request.reservation_id is not None:
-        from backend.app.models import CreditReservation
         reservation = db.get(CreditReservation, request.reservation_id)
         reserved = reservation.reserved_amount if reservation else request.credits_charged
     return ChatCompletionResponse(
         request_id=request.id,
+        conversation_id=request.conversation_id,
         provider=request.provider,
         model=request.model,
         content=request.response_text or "",
@@ -102,6 +115,8 @@ async def create_chat_completion(
     api_key = getattr(settings, f"{payload.provider}_api_key", "")
     if not api_key:
         raise HTTPException(status_code=503, detail=f"{payload.provider} credentials are not configured")
+    if len(payload.messages) != 1 or payload.messages[0].role != "user":
+        raise HTTPException(status_code=422, detail="Send one new user message per chat request")
 
     rates = _find_verified_rate_pair(db, payload.provider, payload.model)
     if rates is None:
@@ -111,20 +126,10 @@ async def create_chat_completion(
         )
     input_rate, output_rate = rates
 
-    message_bytes = sum(len(item.content.encode("utf-8")) for item in payload.messages)
-    if message_bytes > 32768:
-        raise HTTPException(status_code=413, detail="Combined message content exceeds 32 KiB")
-    # Reserve against a byte-derived upper estimate plus the full requested output cap.
-    # If reported usage exceeds this ceiling, funds remain held for reconciliation.
-    max_input_tokens = max(1, (message_bytes * 5 + 3) // 4)
-    reserve_amount = _retail_charge(
-        input_rate, output_rate, max_input_tokens, payload.max_tokens
-    )
     request_data = payload.model_dump(exclude={"idempotency_key"})
     request_hash = hashlib.sha256(
         json.dumps(request_data, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
-
     existing = db.scalar(select(AIRequest).where(
         AIRequest.user_id == user.id,
         AIRequest.idempotency_key == payload.idempotency_key,
@@ -134,6 +139,42 @@ async def create_chat_completion(
             raise HTTPException(status_code=409, detail="Idempotency key belongs to a different request")
         return _completed_response(existing, db)
 
+    if payload.conversation_id is None:
+        title = payload.messages[0].content.strip()[:157] or "New conversation"
+        conversation = Conversation(user_id=user.id, title=title)
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+    else:
+        conversation = db.scalar(select(Conversation).where(
+            Conversation.id == payload.conversation_id,
+            Conversation.user_id == user.id,
+        ))
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+    history = list(db.scalars(
+        select(ConversationMessage)
+        .where(ConversationMessage.conversation_id == conversation.id)
+        .order_by(ConversationMessage.id.desc())
+        .limit(30)
+    ).all())
+    history.reverse()
+    provider_messages = [
+        ChatMessage(role=message.role, content=message.content)
+        for message in history
+    ]
+    provider_messages.append(ChatMessage(role="user", content=payload.messages[0].content))
+
+    message_bytes = sum(len(item.content.encode("utf-8")) for item in provider_messages)
+    if message_bytes > 32768:
+        raise HTTPException(status_code=413, detail="Conversation context exceeds 32 KiB")
+    # Reserve against a byte-derived input upper estimate and the full output cap.
+    max_input_tokens = max(1, (message_bytes * 5 + 3) // 4)
+    reserve_amount = _retail_charge(
+        input_rate, output_rate, max_input_tokens, payload.max_tokens
+    )
+
     ai_request = AIRequest(
         user_id=user.id,
         idempotency_key=payload.idempotency_key,
@@ -141,6 +182,7 @@ async def create_chat_completion(
         provider=payload.provider,
         model=payload.model,
         status="processing",
+        conversation_id=conversation.id,
         input_rate_minor_units=input_rate,
         output_rate_minor_units=output_rate,
         target_margin_bps=1500,
@@ -174,6 +216,13 @@ async def create_chat_completion(
         raise HTTPException(status_code=402, detail="Insufficient credits for the maximum estimated request cost") from None
 
     ai_request.reservation_id = reservation.id
+    db.add(ConversationMessage(
+        conversation_id=conversation.id,
+        request_id=ai_request.id,
+        role="user",
+        content=payload.messages[0].content,
+    ))
+    conversation.updated_at = datetime.now(timezone.utc)
     db.commit()
 
     adapter = OpenAICompatibleChatAdapter(
@@ -185,7 +234,7 @@ async def create_chat_completion(
     try:
         result = await adapter.complete(
             model=payload.model,
-            messages=[ChatMessage(role=item.role, content=item.content) for item in payload.messages],
+            messages=provider_messages,
             max_tokens=payload.max_tokens,
         )
     except ProviderError:
@@ -194,6 +243,20 @@ async def create_chat_completion(
         ai_request.error_code = "provider_unavailable"
         db.commit()
         raise HTTPException(status_code=502, detail="AI provider request failed; reserved credits were released") from None
+
+    assistant_message = ConversationMessage(
+        conversation_id=conversation.id,
+        request_id=ai_request.id,
+        role="assistant",
+        content=result.content,
+        provider=payload.provider,
+        model=payload.model,
+        prompt_tokens=result.prompt_tokens,
+        completion_tokens=result.completion_tokens,
+        credits_charged=0,
+    )
+    db.add(assistant_message)
+    conversation.updated_at = datetime.now(timezone.utc)
 
     if result.prompt_tokens is None or result.completion_tokens is None:
         ai_request.status = "reconciliation_required"
@@ -233,11 +296,13 @@ async def create_chat_completion(
     ai_request.credits_charged = actual_charge
     ai_request.completed_at = datetime.now(timezone.utc)
     ai_request.error_code = None
+    assistant_message.credits_charged = actual_charge
     db.commit()
     db.refresh(ai_request)
 
     return ChatCompletionResponse(
         request_id=ai_request.id,
+        conversation_id=conversation.id,
         provider=payload.provider,
         model=payload.model,
         content=result.content,
@@ -247,6 +312,51 @@ async def create_chat_completion(
         credits_refunded=reservation.reserved_amount - actual_charge,
         balance=get_balance(db, user.id),
     )
+
+
+@router.get("/conversations", response_model=list[ConversationSummaryResponse])
+def list_conversations(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    conversations = db.scalars(
+        select(Conversation)
+        .where(Conversation.user_id == user.id)
+        .order_by(Conversation.updated_at.desc())
+        .limit(50)
+    ).all()
+    return [
+        {"id": item.id, "title": item.title, "created_at": item.created_at, "updated_at": item.updated_at}
+        for item in conversations
+    ]
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationDetailResponse)
+def get_conversation(
+    conversation_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    conversation = db.scalar(select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.user_id == user.id,
+    ))
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    messages = list(db.scalars(
+        select(ConversationMessage)
+        .where(ConversationMessage.conversation_id == conversation.id)
+        .order_by(ConversationMessage.id.asc())
+    ).all())
+    return {
+        "conversation": {
+            "id": conversation.id,
+            "title": conversation.title,
+            "created_at": conversation.created_at,
+            "updated_at": conversation.updated_at,
+        },
+        "messages": messages,
+    }
 
 
 @router.get("/models")
