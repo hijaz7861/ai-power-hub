@@ -160,7 +160,7 @@ class ChatCompletionRequest(BaseModel):
 
 class ChatCompletionResponse(BaseModel):
     request_id: int
-    conversation_id: int
+    conversation_id: int | None
     provider: str
     model: str
     content: str
