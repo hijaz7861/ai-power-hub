@@ -22,8 +22,7 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 - Customer-facing chat panel with verified model catalogue, multi-turn conversation history and conversation switching.
 - Credit reservation before a provider call, actual-usage settlement and unused-credit release.
 - Idempotent AI request records so a retry does not call the paid provider twice.
-- Admin Console for supplier token rates, reconciliation inbox, evidence-referenced settlement and exceptional hold release.
-- Admin Safepay webhook event inbox for signed event audit.
+- Admin Console for supplier token rates, reconciliation inbox, evidence-referenced settlement, exceptional hold release and Safepay webhook event audit.
 - Safepay top-up and signed-webhook settlement foundation (mock-tested only).
 - Next.js customer account panel and server-managed HttpOnly session cookies.
 
@@ -78,7 +77,7 @@ postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 ## Verification and security
 
 - Latest Backend CI #402: 72 tests passed; migrations 0001–0009 passed.
-- Latest Frontend CI #186: TypeScript and production build passed; one final selector adjustment awaits rerun.
+- Latest Frontend CI #197: TypeScript and production build passed.
 - Never commit real API keys, passwords, tokens, database credentials or production secrets.
 - Keep .env out of Git. Configure provider credentials on the backend only.
 - Use a random SECRET_KEY of at least 32 characters in production.
