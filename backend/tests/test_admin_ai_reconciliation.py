@@ -132,3 +132,119 @@ def test_admin_can_release_exceptional_hold_with_audit_evidence(client, test_db)
         ))
         assert release.amount == 500
         assert release.actor_user_id == admin_id
+
+
+from datetime import datetime, timedelta, timezone
+
+
+def test_admin_recovers_stale_processing_request_and_keeps_reservation_held(client, test_db):
+    with test_db() as db:
+        admin = User(email="recovery-admin@example.com", password_hash="unused", role="admin")
+        customer = User(email="recovery-customer@example.com", password_hash="unused")
+        customer.credit_account = CreditAccount(balance=10000)
+        db.add_all([admin, customer])
+        db.commit()
+        admin_token = create_access_token(str(admin.id))
+        customer_id = customer.id
+        admin_id = admin.id
+
+    with test_db() as db:
+        request = AIRequest(
+            user_id=customer_id,
+            idempotency_key="recovery-request-001",
+            request_hash="b" * 64,
+            provider="openai",
+            model="test-model",
+            status="processing",
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=30),
+        )
+        db.add(request)
+        db.commit()
+        request_id = request.id
+        hold = reserve_credits(
+            db,
+            user_id=customer_id,
+            amount=500,
+            idempotency_key=f"ai-request-{request_id}",
+            description="interrupted request hold",
+        )
+        assert hold.status == "reserved"
+        assert db.get(AIRequest, request_id).reservation_id is None
+
+    response = client.post(
+        f"/api/v1/admin/ai-requests/{request_id}/recover",
+        json={"evidence_reference": "worker-crash-investigation-001"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "reconciliation_required"
+    assert response.json()["error_code"] == "interrupted_after_reservation"
+    assert response.json()["reconciled_by_user_id"] == admin_id
+    assert response.json()["completed_at"] is None
+
+    with test_db() as db:
+        recovered = db.get(AIRequest, request_id)
+        reservation = db.scalar(select(CreditReservation).where(
+            CreditReservation.idempotency_key == f"ai-request-{request_id}"
+        ))
+        account = db.scalar(select(CreditAccount).where(CreditAccount.user_id == customer_id))
+        assert recovered.reservation_id == reservation.id
+        assert reservation.status == "reserved"
+        assert account.balance == 9500
+
+
+def test_admin_recovers_stale_request_without_reservation_as_failed(client, test_db):
+    with test_db() as db:
+        admin = User(email="recovery-admin-nohold@example.com", password_hash="unused", role="admin")
+        customer = User(email="recovery-customer-nohold@example.com", password_hash="unused")
+        db.add_all([admin, customer])
+        db.commit()
+        token = create_access_token(str(admin.id))
+        request = AIRequest(
+            user_id=customer.id,
+            idempotency_key="recovery-request-nohold",
+            request_hash="c" * 64,
+            provider="openai",
+            model="test-model",
+            status="processing",
+            created_at=datetime.now(timezone.utc) - timedelta(minutes=30),
+        )
+        db.add(request)
+        db.commit()
+        request_id = request.id
+
+    response = client.post(
+        f"/api/v1/admin/ai-requests/{request_id}/recover",
+        json={"evidence_reference": "worker-crash-investigation-002"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "failed"
+    assert response.json()["error_code"] == "interrupted_before_reservation"
+
+
+def test_admin_cannot_recover_recent_processing_request(client, test_db):
+    with test_db() as db:
+        admin = User(email="recovery-admin-recent@example.com", password_hash="unused", role="admin")
+        customer = User(email="recovery-customer-recent@example.com", password_hash="unused")
+        db.add_all([admin, customer])
+        db.commit()
+        token = create_access_token(str(admin.id))
+        request = AIRequest(
+            user_id=customer.id,
+            idempotency_key="recovery-request-recent",
+            request_hash="d" * 64,
+            provider="openai",
+            model="test-model",
+            status="processing",
+        )
+        db.add(request)
+        db.commit()
+        request_id = request.id
+
+    response = client.post(
+        f"/api/v1/admin/ai-requests/{request_id}/recover",
+        json={"evidence_reference": "not-stale-yet-003"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 409
