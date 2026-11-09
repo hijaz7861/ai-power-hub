@@ -109,9 +109,9 @@ class OpenAICompatibleChatAdapter:
             usage = data.get("usage") or {}
             prompt_tokens = usage.get("prompt_tokens")
             completion_tokens = usage.get("completion_tokens")
-            if prompt_tokens is not None and (isinstance(prompt_tokens, bool) or not isinstance(prompt_tokens, int)):
+            if prompt_tokens is not None and (isinstance(prompt_tokens, bool) or not isinstance(prompt_tokens, int) or prompt_tokens < 0):
                 raise TypeError
-            if completion_tokens is not None and (isinstance(completion_tokens, bool) or not isinstance(completion_tokens, int)):
+            if completion_tokens is not None and (isinstance(completion_tokens, bool) or not isinstance(completion_tokens, int) or completion_tokens < 0):
                 raise TypeError
             request_id = data.get("id")
             if request_id is not None and not isinstance(request_id, str):
