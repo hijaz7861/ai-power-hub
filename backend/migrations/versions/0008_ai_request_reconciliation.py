@@ -24,18 +24,19 @@ def upgrade() -> None:
     op.add_column("ai_requests", sa.Column(
         "reconciled_by_user_id", sa.Integer(), nullable=True
     ))
-    op.create_foreign_key(
-        "fk_ai_request_reconciled_by",
-        "ai_requests",
-        "users",
-        ["reconciled_by_user_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
+    with op.batch_alter_table("ai_requests") as batch_op:
+        batch_op.create_foreign_key(
+            "fk_ai_request_reconciled_by",
+            "users",
+            ["reconciled_by_user_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_ai_request_reconciled_by", "ai_requests", type_="foreignkey")
+    with op.batch_alter_table("ai_requests") as batch_op:
+        batch_op.drop_constraint("fk_ai_request_reconciled_by", type_="foreignkey")
     op.drop_column("ai_requests", "reconciled_by_user_id")
     op.drop_column("ai_requests", "reconciliation_evidence")
     op.drop_column("ai_requests", "target_margin_bps")
