@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rejectCrossOriginMutation } from "../../../../lib/csrf";
+import { forwardedClientIpHeader } from "../../../../lib/forwarded-client-ip";
 
 const backend = process.env.API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     const upstream = await fetch(backend + "/api/v1/auth/register", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...forwardedClientIpHeader(request) },
       body: JSON.stringify(body),
       cache: "no-store",
     });
