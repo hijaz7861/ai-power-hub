@@ -111,7 +111,8 @@ export default function AdminConsole() {
   const [checkingRole, setCheckingRole] = useState(true);
   const [offers, setOffers] = useState<SupplierOffer[]>([]);
   const [requests, setRequests] = useState<AIRequest[]>([]);
-  const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([]);\n  const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
+  const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([]);
+  const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
