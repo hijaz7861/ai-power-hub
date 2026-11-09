@@ -231,6 +231,7 @@ export default function ChatPanel() {
             disabled={loadingConversation || sending}
             onChange={(event) => {
               if (event.target.value) void openConversation(Number(event.target.value));
+              else startNewConversation();
             }}
           >
             <option value="">New conversation</option>
