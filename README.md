@@ -14,7 +14,7 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 
 ## Implemented foundation
 
-- FastAPI, SQLAlchemy and Alembic migrations through 0009.
+- FastAPI, SQLAlchemy and Alembic migrations through 0010.
 - Customer registration/login and role-based admin authorization.
 - Credit accounts, auditable ledger, idempotent grants/debits and customer-scoped history.
 - Integer-minor-unit pricing engine and admin-managed supplier wholesale offers.
@@ -22,8 +22,10 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 - Customer-facing chat panel with verified model catalogue, multi-turn conversation history and conversation switching.
 - Credit reservation before a provider call, actual-usage settlement and unused-credit release.
 - Idempotent AI request records so a retry does not call the paid provider twice.
-- Admin Console for supplier token rates, reconciliation inbox, evidence-referenced settlement, exceptional hold release and Safepay webhook event audit.
-- Safepay top-up and signed-webhook settlement foundation (mock-tested only).
+- Customer conversation deletion erases stored messages and cached response text while preserving financial/audit request rows.
+- Admin Console for supplier token rates, AI reconciliation, payment orders, cumulative refund totals and Safepay webhook event audit.
+- Safepay top-up and signed-webhook settlement foundation.
+- Verified partial/full Safepay refund webhook events reverse purchased credits with event idempotency and a bounded cumulative refund total.
 - Next.js customer account panel and server-managed HttpOnly session cookies.
 
 ## Enabling a metered chat model
@@ -38,9 +40,13 @@ The public model catalogue lists only models with configured credentials and com
 
 Credits are reserved before the paid provider call. After a response with valid token usage, the platform calculates the retail charge, captures it and releases the unused reserve. A retry with the same idempotency key returns the stored completed response rather than issuing another paid request.
 
-Conversation history is stored under the customer account. The API checks ownership before returning a thread and includes prior turns in subsequent provider requests. Customer retention/export/deletion controls and a published privacy policy remain to be implemented.
+Conversation history is stored under the customer account. The API checks ownership before returning a thread and includes prior turns in subsequent provider requests. Customers can delete individual conversations; this removes stored message text and cached response text but retains financial/audit request metadata. Full account export/closure and a published privacy policy remain to be implemented.
 
-If token usage is missing or exceeds the authorized reserve, the request is marked reconciliation_required and the hold remains in place. An admin-only inbox and evidence-referenced reconciliation/hold-release controls are available; evidence is an administrator attestation and must be checked externally.
+## Safepay refund accounting
+
+Only a signed, matching webhook can trigger credit reversal. A refund must match the original payment's tracker, order reference, currency and accepted provider tracker state. Duplicate event tokens are idempotent, and cumulative refunds cannot exceed the original top-up. If the credits were already consumed, the credit balance may become negative; paid AI usage is then blocked until the balance is replenished.
+
+This is an internal credit-ledger reversal. It does not initiate or prove that Safepay has paid money back to the customer's bank/card. Merchant-side refund execution, settlement reports and chargeback dispute handling still require live provider integration and reconciliation.
 
 ## Local development
 
@@ -76,12 +82,13 @@ postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 
 ## Verification and security
 
-- Latest Backend CI #402: 72 tests passed; migrations 0001–0009 passed.
-- Latest Frontend CI #197: TypeScript and production build passed.
+- Previously verified Backend CI #402: 72 tests; migrations 0001–0009.
+- Previously verified Frontend CI #197: TypeScript and production build.
+- Latest Backend CI #449 and Frontend CI #219 include the refund and privacy additions; check their GitHub runs for current results.
 - Never commit real API keys, passwords, tokens, database credentials or production secrets.
 - Keep .env out of Git. Configure provider credentials on the backend only.
 - Use a random SECRET_KEY of at least 32 characters in production.
-- Do not trust a browser redirect as payment confirmation; Safepay credits are granted only by the signed, matching webhook.
+- Do not trust a browser redirect as payment confirmation; Safepay credits are granted only by a signed, matching webhook.
 - Provider adapters and mocked CI tests do not establish live supplier access, resale rights, production readiness or revenue.
 - No production deployment or live payment/provider transaction has been verified.
 
