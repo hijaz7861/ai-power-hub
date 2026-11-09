@@ -166,3 +166,29 @@ class ChatCompletionResponse(BaseModel):
     credits_charged: int
     credits_refunded: int
     balance: int
+
+
+class AIRequestAdminResponse(BaseModel):
+    id: int
+    user_id: int
+    provider: str
+    model: str
+    status: str
+    reservation_id: int | None
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    credits_charged: int
+    input_rate_minor_units: int
+    output_rate_minor_units: int
+    target_margin_bps: int
+    error_code: str | None
+    reconciliation_evidence: str | None
+    reconciled_by_user_id: int | None
+    created_at: datetime
+    completed_at: datetime | None
+
+
+class AIRequestReconcileRequest(BaseModel):
+    prompt_tokens: int = Field(ge=0, le=10**9)
+    completion_tokens: int = Field(ge=0, le=10**9)
+    evidence_reference: str = Field(min_length=8, max_length=255)
