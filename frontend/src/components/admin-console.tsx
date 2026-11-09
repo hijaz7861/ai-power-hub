@@ -106,11 +106,45 @@ function ReconciliationForm({
   );
 }
 
+function RecoveryForm({
+  item,
+  onRecover,
+}: {
+  item: AIRequest;
+  onRecover: (id: number, evidence: string) => Promise<void>;
+}) {
+  const [evidence, setEvidence] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (evidence.trim().length < 8) return;
+    setBusy(true);
+    try {
+      await onRecover(item.id, evidence.trim());
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="admin-reconcile-form" onSubmit={submit}>
+      <label>Recovery evidence / incident reference
+        <input required minLength={8} maxLength={255} value={evidence} onChange={(event) => setEvidence(event.target.value)} placeholder="Worker restart / incident ticket" />
+      </label>
+      <button className="account-button" type="submit" disabled={busy || evidence.trim().length < 8}>
+        {busy ? "Recovering…" : "Move to safe reconciliation"}
+      </button>
+    </form>
+  );
+}
+
 export default function AdminConsole() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [offers, setOffers] = useState<SupplierOffer[]>([]);
   const [requests, setRequests] = useState<AIRequest[]>([]);
+  const [processingRequests, setProcessingRequests] = useState<AIRequest[]>([]);
   const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([]);
   const [paymentOrders, setPaymentOrders] = useState<PaymentOrder[]>([]);
   const [error, setError] = useState("");
@@ -125,23 +159,26 @@ export default function AdminConsole() {
   const [contractVerified, setContractVerified] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [offerResponse, requestResponse, paymentResponse, ordersResponse] = await Promise.all([
+    const [offerResponse, requestResponse, processingResponse, paymentResponse, ordersResponse] = await Promise.all([
       fetch("/api/admin/supplier-offers", { cache: "no-store" }),
       fetch("/api/admin/ai-requests", { cache: "no-store" }),
+      fetch("/api/admin/ai-requests?request_status=processing", { cache: "no-store" }),
       fetch("/api/admin/payment-events", { cache: "no-store" }),
       fetch("/api/admin/payment-orders", { cache: "no-store" }),
     ]);
-    const [offerData, requestData, paymentData, orderData] = await Promise.all([
+    const [offerData, requestData, processingData, paymentData, orderData] = await Promise.all([
       offerResponse.json().catch(() => ({})),
       requestResponse.json().catch(() => ({})),
+      processingResponse.json().catch(() => ({})),
       paymentResponse.json().catch(() => ({})),
       ordersResponse.json().catch(() => ({})),
     ]);
-    if (!offerResponse.ok || !requestResponse.ok || !paymentResponse.ok || !ordersResponse.ok) {
-      throw new Error(offerData.detail || requestData.detail || paymentData.detail || orderData.detail || "Could not load admin data");
+    if (!offerResponse.ok || !requestResponse.ok || !processingResponse.ok || !paymentResponse.ok || !ordersResponse.ok) {
+      throw new Error(offerData.detail || requestData.detail || processingData.detail || paymentData.detail || orderData.detail || "Could not load admin data");
     }
     setOffers(offerData as SupplierOffer[]);
     setRequests(requestData as AIRequest[]);
+    setProcessingRequests(processingData as AIRequest[]);
     setPaymentEvents(paymentData as PaymentEvent[]);
     setPaymentOrders(orderData as PaymentOrder[]);
   }, []);
@@ -239,6 +276,31 @@ export default function AdminConsole() {
     }
   }
 
+  async function recoverRequest(id: number, evidence: string) {
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/ai-requests/" + id + "/recover", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ evidence_reference: evidence }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(result.detail || "AI request recovery failed");
+        return;
+      }
+      setNotice(
+        result.status === "reconciliation_required"
+          ? "AI request #" + id + " moved to reconciliation. Its credit hold remains reserved until provider usage is checked."
+          : "AI request #" + id + " recovered as failed; no outstanding provider hold remains.",
+      );
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "AI request recovery service unavailable");
+    }
+  }
+
   async function releaseHold(id: number, evidence: string) {
     setError("");
     setNotice("");
@@ -298,6 +360,21 @@ export default function AdminConsole() {
       </p>
       {error ? <p className="chat-error" role="alert">{error}</p> : null}
       {notice ? <p className="admin-notice" role="status">{notice}</p> : null}
+
+      <section className="admin-section">
+        <h3>Interrupted AI requests</h3>
+        <p>Requests still marked processing are listed for review. Recovery requires an incident reference; reserved credits are never automatically released because a provider may already have completed a billable call.</p>
+        {processingRequests.map((item) => (
+          <article className="admin-request-card" key={item.id}>
+            <div className="admin-request-meta">
+              <strong>Request #{item.id} · User #{item.user_id}</strong>
+              <small>{item.provider} · {item.model} · Started {new Date(item.created_at).toLocaleString()}</small>
+            </div>
+            <RecoveryForm item={item} onRecover={recoverRequest} />
+          </article>
+        ))}
+        {processingRequests.length === 0 ? <div className="chat-empty">No requests are waiting for interruption recovery.</div> : null}
+      </section>
 
       <div className="admin-grid">
         <section className="admin-section">
