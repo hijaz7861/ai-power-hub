@@ -22,10 +22,12 @@ The proposed entry plan starts at **PKR 100/month**. Usage is credit-metered; pl
 - Customer-facing chat panel with verified model catalogue, multi-turn conversation history and conversation switching.
 - Credit reservation before a provider call, actual-usage settlement and unused-credit release.
 - Idempotent AI request records so a retry does not call the paid provider twice.
+- Admin recovery inbox for stale AI executions; a reserved hold remains held until provider-side usage is checked.
 - Customer conversation deletion erases stored messages and cached response text while preserving financial/audit request rows.
 - Admin Console for supplier token rates, AI reconciliation, payment orders, cumulative refund totals and Safepay webhook event audit.
 - Safepay top-up and signed-webhook settlement foundation.
 - Verified partial/full Safepay refund webhook events reverse purchased credits with event idempotency and a bounded cumulative refund total.
+- Same-origin checks on cookie-authenticated mutation routes.
 - Next.js customer account panel and server-managed HttpOnly session cookies.
 
 ## Enabling a metered chat model
@@ -70,9 +72,9 @@ Run tests:
 python -m pytest -q
 ```
 
-## Database
+## Database and production configuration
 
-SQLite is for local development and tests. Production must use PostgreSQL, run Alembic migrations before application startup, and validate backups/restores.
+SQLite is for local development and tests only. Production startup rejects SQLite and requires PostgreSQL, a random SECRET_KEY of at least 32 characters, DEBUG=false, and a public HTTPS PUBLIC_APP_URL.
 
 Install the optional PostgreSQL driver from requirements-postgres.txt and configure a SQLAlchemy URL such as:
 
@@ -80,16 +82,14 @@ Install the optional PostgreSQL driver from requirements-postgres.txt and config
 postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 ```
 
+The Next.js cookie-authenticated backend-for-frontend rejects cross-origin mutations. Set frontend APP_ORIGIN to the exact public origin (for example, https://ai.example.com) in production. Do not commit secrets or paste them into chat; configure them through the hosting provider's secret manager.
+
 ## Verification and security
 
-- Previously verified Backend CI #402: 72 tests; migrations 0001–0009.
-- Previously verified Frontend CI #197: TypeScript and production build.
-- Latest Backend CI #449 and Frontend CI #219 include the refund and privacy additions; check their GitHub runs for current results.
-- Never commit real API keys, passwords, tokens, database credentials or production secrets.
-- Keep .env out of Git. Configure provider credentials on the backend only.
-- Use a random SECRET_KEY of at least 32 characters in production.
-- Do not trust a browser redirect as payment confirmation; Safepay credits are granted only by a signed, matching webhook.
+- Backend CI #499: 85 tests passed; Alembic migrations 0001–0010 passed.
+- Frontend CI #259: TypeScript check and Next.js production build passed.
+- Live OpenAI/Mistral calls, Safepay sandbox transactions, browser end-to-end testing and production deployment have not been performed.
 - Provider adapters and mocked CI tests do not establish live supplier access, resale rights, production readiness or revenue.
-- No production deployment or live payment/provider transaction has been verified.
+- A verified supplier contract state is an administrator attestation, not independent legal verification.
 
 See PROJECT_STATUS.md for current verification gates.
