@@ -10,6 +10,7 @@ def test_production_config_requires_postgresql_and_public_https_url():
         secret_key="a" * 64,
         database_url="postgresql+psycopg://user:pass@db.example.test:5432/aiph",
         public_app_url="https://ai.example.test",
+        redis_url="rediss://cache.example.test:6379/0",
     )
     settings.validate_runtime()
 
