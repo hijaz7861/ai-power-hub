@@ -155,6 +155,9 @@ class AIRequest(Base):
     reservation_id: Mapped[int | None] = mapped_column(
         ForeignKey("credit_reservations.id", ondelete="SET NULL"), nullable=True
     )
+    conversation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     response_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     provider_request_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
     prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -168,3 +171,42 @@ class AIRequest(Base):
     error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+
+class Conversation(Base):
+    """A customer-owned chat thread."""
+    __tablename__ = "conversations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"),
+                                         nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(160), nullable=False, default="New conversation")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
+class ConversationMessage(Base):
+    """User and assistant messages linked to a metered AI request."""
+    __tablename__ = "conversation_messages"
+    __table_args__ = (
+        UniqueConstraint("request_id", "role", name="uq_conversation_message_request_role"),
+        CheckConstraint("role IN ('user', 'assistant')", name="ck_conversation_message_role"),
+        CheckConstraint("credits_charged >= 0", name="ck_conversation_message_nonnegative_charge"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("ai_requests.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    credits_charged: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
