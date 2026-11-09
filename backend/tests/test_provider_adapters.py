@@ -94,3 +94,20 @@ def test_invalid_request_is_rejected_before_network_call():
             messages=[ChatMessage("user", "Hi")],
             max_tokens=0,
         ))
+
+
+def test_provider_negative_token_usage_is_rejected():
+    async def handler(request):
+        return httpx.Response(200, json={
+            "choices": [{"message": {"role": "assistant", "content": "Hi"}}],
+            "usage": {"prompt_tokens": -1, "completion_tokens": 2},
+        })
+
+    adapter = OpenAICompatibleChatAdapter(
+        provider="test-provider",
+        base_url="https://api.example.test/v1",
+        api_key="test-secret",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ProviderError, match="unsupported response shape"):
+        asyncio.run(adapter.complete(model="test-model", messages=[ChatMessage("user", "Hi")]))
