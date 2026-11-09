@@ -14,6 +14,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(default=True)
     role: Mapped[str] = mapped_column(String(24), default="customer", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     credit_account: Mapped["CreditAccount"] = relationship(back_populates="user", cascade="all, delete-orphan", uselist=False)
 
 class CreditAccount(Base):
