@@ -213,8 +213,12 @@ def settle_reservation(
     return reservation
 
 
-def release_reservation(db: Session, *, user_id: int, reservation_id: int) -> CreditReservation:
+def release_reservation(
+    db: Session, *, user_id: int, reservation_id: int,
+    actor_user_id: int | None = None,
+) -> CreditReservation:
     """Release the complete hold after a provider failure or cancelled request."""
     return settle_reservation(
         db, user_id=user_id, reservation_id=reservation_id, actual_amount=0,
+        actor_user_id=actor_user_id,
     )
