@@ -202,3 +202,34 @@ def test_account_closure_refuses_pending_payment(client, test_db):
     assert "payment is still pending" in response.json()["detail"]
     with test_db() as db:
         assert db.get(User, user_id).is_active is True
+
+
+def test_account_closure_refuses_reserved_credit_hold(client, test_db):
+    with test_db() as db:
+        user = User(
+            email="close-reservation@example.com",
+            password_hash=hash_password("a-long-test-password"),
+        )
+        user.credit_account = CreditAccount(balance=0)
+        db.add(user)
+        db.flush()
+        db.add(CreditReservation(
+            user_id=user.id,
+            idempotency_key="close-reservation-001",
+            reserved_amount=100,
+            captured_amount=0,
+            status="reserved",
+            description="Unsettled test hold",
+        ))
+        user_id = user.id
+        db.commit()
+    token = create_access_token(str(user_id))
+    response = client.post(
+        "/api/v1/account/close",
+        json={"password": "a-long-test-password"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 409
+    assert "AI request or credit reservation" in response.json()["detail"]
+    with test_db() as db:
+        assert db.get(User, user_id).is_active is True
