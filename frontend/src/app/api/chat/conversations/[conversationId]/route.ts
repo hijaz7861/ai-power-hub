@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossOriginMutation } from "../../../../../lib/csrf";
 
 const backend = process.env.API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -7,6 +8,8 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ conversationId: string }> },
 ) {
+  const rejected = rejectCrossOriginMutation(request);
+  if (rejected) return rejected;
   const store = await cookies();
   const token = store.get("aiph_session")?.value;
   if (!token) return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
@@ -28,7 +31,7 @@ export async function GET(
 
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   context: { params: Promise<{ conversationId: string }> },
 ) {
   const store = await cookies();
