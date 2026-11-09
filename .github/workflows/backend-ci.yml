@@ -68,3 +68,16 @@ jobs:
         run: python -m alembic upgrade head
       - name: Validate downgrade and re-upgrade on PostgreSQL
         run: python -m alembic downgrade base && python -m alembic upgrade head && python -m alembic current
+
+
+  deployment-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Validate Docker Compose configuration
+        run: |
+          cp .env.example .env
+          sed -i 's|^PUBLIC_APP_URL=.*|PUBLIC_APP_URL=https://aiph.example.test|' .env
+          docker compose config --quiet
