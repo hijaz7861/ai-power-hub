@@ -34,9 +34,11 @@ type AIRequest = {
 function ReconciliationForm({
   item,
   onReconcile,
+  onRelease,
 }: {
   item: AIRequest;
   onReconcile: (id: number, prompt: number, completion: number, evidence: string) => Promise<void>;
+  onRelease: (id: number, evidence: string) => Promise<void>;
 }) {
   const [prompt, setPrompt] = useState(item.prompt_tokens?.toString() || "");
   const [completion, setCompletion] = useState(item.completion_tokens?.toString() || "");
@@ -70,6 +72,9 @@ function ReconciliationForm({
       </label>
       <button className="account-button" type="submit" disabled={busy}>
         {busy ? "Settling…" : "Verify and settle hold"}
+      </button>
+      <button className="account-button secondary" type="button" disabled={busy || evidence.trim().length < 8} onClick={() => onRelease(item.id, evidence.trim())}>
+        Release full hold (platform absorbs cost)
       </button>
     </form>
   );
@@ -170,6 +175,27 @@ export default function AdminConsole() {
     }
   }
 
+  async function releaseHold(id: number, evidence: string) {
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/ai-requests/" + id + "/release", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ evidence_reference: evidence }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(result.detail || "Hold release failed");
+        return;
+      }
+      setNotice("AI request #" + id + " hold released. The platform absorbs any provider cost for this request.");
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Hold release service unavailable");
+    }
+  }
+
   async function reconcile(id: number, promptTokens: number, completionTokens: number, evidence: string) {
     setError("");
     setNotice("");
@@ -244,7 +270,7 @@ export default function AdminConsole() {
                 <strong>Request #{item.id} · User #{item.user_id}</strong>
                 <small>{item.provider} · {item.model} · {item.error_code || item.status}</small>
               </div>
-              <ReconciliationForm item={item} onReconcile={reconcile} />
+              <ReconciliationForm item={item} onReconcile={reconcile} onRelease={releaseHold} />
             </article>
           ))}
           {requests.length === 0 ? <div className="chat-empty">No AI requests are waiting for reconciliation.</div> : null}
