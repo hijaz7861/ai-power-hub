@@ -15,11 +15,12 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    build:
+      context: .
+      dockerfile: ops/Redis.Dockerfile
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
-    command: ["sh", "-c", 'exec redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"']
     volumes:
       - redis_data:/data
     healthcheck:
