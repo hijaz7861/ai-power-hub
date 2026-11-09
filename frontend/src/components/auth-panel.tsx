@@ -16,6 +16,13 @@ type Account = {
   ledger: LedgerEntry[];
 };
 
+function createIdempotencyKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "aiph-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+}
+
 export default function AuthPanel() {
   const [account, setAccount] = useState<Account | null>(null);
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -87,7 +94,7 @@ export default function AuthPanel() {
       const response = await fetch("/api/payments/topups", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ amount_pkr: amount, idempotency_key: crypto.randomUUID() }),
+        body: JSON.stringify({ amount_pkr: amount, idempotency_key: createIdempotencyKey() }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.detail || "Could not start checkout");
