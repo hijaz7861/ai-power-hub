@@ -165,6 +165,7 @@ def reserve_credits(
 
 def settle_reservation(
     db: Session, *, user_id: int, reservation_id: int, actual_amount: int,
+    actor_user_id: int | None = None,
 ) -> CreditReservation:
     """Capture actual usage and return the unused hold; safe to retry."""
     if isinstance(actual_amount, bool) or not isinstance(actual_amount, int) or actual_amount < 0:
@@ -198,6 +199,7 @@ def settle_reservation(
             user_id=user_id, amount=refund, entry_type="release",
             idempotency_key=f"reservation:{reservation.id}:release",
             description=f"Unused reservation released: {reservation.description}"[:255],
+            actor_user_id=actor_user_id,
         ))
     reservation.captured_amount = actual_amount
     reservation.status = "captured" if actual_amount else "released"
