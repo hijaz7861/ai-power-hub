@@ -164,6 +164,24 @@ export default function ChatPanel() {
     }
   }
 
+  async function deleteConversation() {
+    if (!conversationId || sending || loadingConversation) return;
+    if (!window.confirm("Delete this conversation and erase its stored message content?")) return;
+    setLoadingConversation(true);
+    setError("");
+    try {
+      const response = await fetch("/api/chat/conversations/" + conversationId, { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.detail || "Could not delete conversation");
+      setConversations((current) => current.filter((item) => item.id !== conversationId));
+      startNewConversation();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Conversation deletion failed");
+    } finally {
+      setLoadingConversation(false);
+    }
+  }
+
   function startNewConversation() {
     setConversationId(null);
     setHistory([]);
@@ -262,22 +280,32 @@ export default function ChatPanel() {
       </div>
 
       {conversations.length > 0 ? (
-        <label className="chat-conversation-select">
-          Conversation history
-          <select
-            value={conversationId ?? ""}
-            disabled={loadingConversation || sending}
-            onChange={(event) => {
-              if (event.target.value) void openConversation(Number(event.target.value));
-              else startNewConversation();
-            }}
+        <div className="chat-history-controls">
+          <label className="chat-conversation-select">
+            Conversation history
+            <select
+              value={conversationId ?? ""}
+              disabled={loadingConversation || sending}
+              onChange={(event) => {
+                if (event.target.value) void openConversation(Number(event.target.value));
+                else startNewConversation();
+              }}
+            >
+              <option value="">New conversation</option>
+              {conversations.map((item) => (
+                <option key={item.id} value={item.id}>{item.title}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="account-button secondary chat-delete-button"
+            type="button"
+            onClick={() => void deleteConversation()}
+            disabled={!conversationId || loadingConversation || sending}
           >
-            <option value="">New conversation</option>
-            {conversations.map((item) => (
-              <option key={item.id} value={item.id}>{item.title}</option>
-            ))}
-          </select>
-        </label>
+            Delete selected
+          </button>
+        </div>
       ) : null}
 
       <div className="chat-history" aria-live="polite">
