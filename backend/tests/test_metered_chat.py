@@ -184,3 +184,90 @@ def test_public_model_catalogue_only_lists_complete_verified_rate_pairs(
         "model": "test-model",
         "credential_configured": True,
     }]
+
+
+def test_chat_conversation_persists_history_and_reuses_it_for_next_turn(
+    client, test_db, monkeypatch, chat_settings
+):
+    _, headers = setup_chat_account(test_db)
+    seen_contexts = []
+
+    async def fake_complete(self, *, model, messages, max_tokens):
+        seen_contexts.append([(message.role, message.content) for message in messages])
+        answer = "First answer" if len(seen_contexts) == 1 else "Second answer"
+        return ProviderResult(
+            provider="openai", model=model, content=answer,
+            request_id="conversation-request-" + str(len(seen_contexts)),
+            prompt_tokens=100, completion_tokens=50,
+        )
+
+    monkeypatch.setattr(
+        "backend.app.api.chat.OpenAICompatibleChatAdapter.complete", fake_complete
+    )
+    first = client.post("/api/v1/chat/completions", json={
+        "provider": "openai", "model": "test-model",
+        "messages": [{"role": "user", "content": "First question"}],
+        "max_tokens": 100, "idempotency_key": "conversation-turn-0001",
+    }, headers=headers)
+    assert first.status_code == 200, first.text
+    conversation_id = first.json()["conversation_id"]
+    assert seen_contexts[0] == [("user", "First question")]
+
+    second = client.post("/api/v1/chat/completions", json={
+        "provider": "openai", "model": "test-model",
+        "messages": [{"role": "user", "content": "Second question"}],
+        "conversation_id": conversation_id,
+        "max_tokens": 100, "idempotency_key": "conversation-turn-0002",
+    }, headers=headers)
+    assert second.status_code == 200, second.text
+    assert second.json()["conversation_id"] == conversation_id
+    assert seen_contexts[1] == [
+        ("user", "First question"),
+        ("assistant", "First answer"),
+        ("user", "Second question"),
+    ]
+
+    listing = client.get("/api/v1/chat/conversations", headers=headers)
+    assert listing.status_code == 200
+    assert len(listing.json()) == 1
+    detail = client.get(f"/api/v1/chat/conversations/{conversation_id}", headers=headers)
+    assert detail.status_code == 200
+    assert [item["role"] for item in detail.json()["messages"]] == [
+        "user", "assistant", "user", "assistant"
+    ]
+
+
+def test_conversation_history_is_private_to_its_owner(client, test_db, monkeypatch, chat_settings):
+    _, owner_headers = setup_chat_account(test_db)
+
+    async def fake_complete(self, *, model, messages, max_tokens):
+        return ProviderResult(
+            provider="openai", model=model, content="Private answer",
+            request_id="private-conversation-1", prompt_tokens=10, completion_tokens=5,
+        )
+
+    monkeypatch.setattr(
+        "backend.app.api.chat.OpenAICompatibleChatAdapter.complete", fake_complete
+    )
+    response = client.post("/api/v1/chat/completions", json={
+        "provider": "openai", "model": "test-model",
+        "messages": [{"role": "user", "content": "Private question"}],
+        "max_tokens": 100, "idempotency_key": "private-conversation-01",
+    }, headers=owner_headers)
+    assert response.status_code == 200
+    conversation_id = response.json()["conversation_id"]
+
+    db = test_db()
+    other = User(email="other-chat-owner@example.com", password_hash="unused")
+    other.credit_account = CreditAccount(balance=10000)
+    db.add(other)
+    db.commit()
+    db.refresh(other)
+    other_token = create_access_token(str(other.id))
+    db.close()
+
+    denied = client.get(
+        f"/api/v1/chat/conversations/{conversation_id}",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert denied.status_code == 404
