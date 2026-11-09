@@ -109,3 +109,26 @@ def test_reconciliation_rejects_charge_above_authorized_hold(client, test_db):
     )
     assert response.status_code == 422
     assert "exceeds the original authorization" in response.json()["detail"]
+
+
+def test_admin_can_release_exceptional_hold_with_audit_evidence(client, test_db):
+    admin_id, customer_id, request_id, admin_token, _ = create_admin_and_held_request(test_db)
+    response = client.post(
+        f"/api/v1/admin/ai-requests/{request_id}/release",
+        json={"evidence_reference": "provider-support-case-9981"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "failed"
+    assert response.json()["error_code"] == "admin_released_hold"
+    assert response.json()["reconciled_by_user_id"] == admin_id
+
+    with test_db() as db:
+        account = db.scalar(select(CreditAccount).where(CreditAccount.user_id == customer_id))
+        assert account.balance == 10000
+        release = db.scalar(select(CreditLedger).where(
+            CreditLedger.user_id == customer_id,
+            CreditLedger.entry_type == "release",
+        ))
+        assert release.amount == 500
+        assert release.actor_user_id == admin_id
