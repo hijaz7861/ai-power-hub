@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AuthPanel from "../components/auth-panel";
 import ChatPanel from "../components/chat-panel";
+import AdminConsole from "../components/admin-console";
 
 type Provider = {
   id: string;
@@ -59,6 +60,7 @@ export default function HomePage() {
         <div className="nav-label">WORKSPACE</div>
         <a className="nav-item active" href="#overview">Overview</a>
         <a className="nav-item" href="#chat">AI Chat</a>
+        <a className="nav-item" href="#admin">Admin</a>
         <a className="nav-item" href="#providers">AI Providers</a>
         <a className="nav-item" href="#capabilities">Capabilities</a>
         <div className="sidebar-note">
@@ -75,6 +77,7 @@ export default function HomePage() {
         </header>
         <AuthPanel />
         <ChatPanel />
+        <AdminConsole />
 
         <section className="hero" id="overview">
           <div className="hero-copy">
