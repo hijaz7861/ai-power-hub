@@ -83,12 +83,15 @@ Install the optional PostgreSQL driver from requirements-postgres.txt and config
 postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME
 ```
 
+The backend CI includes a PostgreSQL 16 service that upgrades all migrations, downgrades to base and re-upgrades to head. This validates the migration chain against PostgreSQL; it is not a production backup/restore drill.
+
 The Next.js cookie-authenticated backend-for-frontend rejects cross-origin mutations. Set frontend APP_ORIGIN to the exact public origin (for example, https://ai.example.com) in production. Browser security headers include frame denial, MIME sniffing protection, referrer policy, restricted permissions, production HSTS and no-store API responses. Configure all secrets through the hosting provider's secret manager; never commit them.
 
 ## Verification and security
 
-- Backend CI #522: 87 tests passed; Alembic migrations 0001–0010 passed.
-- Frontend CI #275: TypeScript check and Next.js production build passed.
+- Backend CI #527: 87 tests passed; SQLite migration validation passed.
+- Backend CI #527 PostgreSQL 16 job: upgrade, downgrade and re-upgrade passed.
+- Frontend CI #278: TypeScript check and Next.js production build passed.
 - Live OpenAI/Mistral calls, Safepay sandbox transactions, browser end-to-end testing and production deployment have not been performed.
 - Provider adapters and mocked CI tests do not establish live supplier access, resale rights, production readiness or revenue.
 - A verified supplier contract state is an administrator attestation, not independent legal verification.

@@ -40,11 +40,13 @@ Last updated: 2026-11-09
 - [x] Recovery links orphaned reservations by idempotency key; reserved funds remain held for human provider-usage reconciliation
 - [x] Recovery never auto-releases a hold when a provider may have completed a billable request
 - [x] Admin Console UI for supplier rates, contract attestation, AI reconciliation/recovery, exceptional hold release, payment orders/refunds and webhook audit
+- [x] PostgreSQL 16 CI migration round-trip: upgrade 0001–0010, downgrade to base, then re-upgrade to head
 - [x] Provider catalogue distinguishes available OpenAI/Mistral adapter code from integrations not implemented
 
 ### Latest verified GitHub Actions
-- [x] Backend CI #522: 87 tests passed; Alembic migrations 0001 through 0010 passed
-- [x] Frontend CI #275: TypeScript type check and Next.js production build passed
+- [x] Backend CI #527: 87 tests passed; SQLite test migration validation passed
+- [x] PostgreSQL migration job in Backend CI #527: PostgreSQL 16 upgrade, downgrade and re-upgrade passed
+- [x] Frontend CI #278: TypeScript type check and Next.js production build passed
 - [ ] Browser end-to-end test of registration, login, checkout, multi-turn chat, refund, export and deletion
 - [ ] Termux-native install and runtime confirmed
 
