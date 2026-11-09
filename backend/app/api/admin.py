@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -19,6 +19,7 @@ from backend.app.schemas import (
     AIRequestAdminResponse,
     AIRequestReconcileRequest,
     AIRequestReleaseRequest,
+    AIRequestRecoveryRequest,
 )
 from backend.app.services.pricing import PricingInputs, calculate_retail_price
 from backend.app.services.credits import grant_credits, release_reservation, settle_reservation
@@ -178,6 +179,82 @@ def list_ai_requests(
         .order_by(AIRequest.id.desc())
         .limit(limit)
     ).all())
+
+
+@router.post(
+    "/ai-requests/{request_id}/recover",
+    response_model=AIRequestAdminResponse,
+)
+def recover_interrupted_ai_request(
+    request_id: int,
+    payload: AIRequestRecoveryRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AIRequest:
+    """Move an old processing request into a safe, auditable recovery state.
+
+    A reserved hold is never released automatically: the provider may have
+    completed a billable call before the worker died.
+    """
+    ai_request = db.scalar(
+        select(AIRequest).where(AIRequest.id == request_id).with_for_update()
+    )
+    if ai_request is None:
+        raise HTTPException(status_code=404, detail="AI request not found")
+    if ai_request.status != "processing":
+        raise HTTPException(status_code=409, detail="AI request is not processing")
+    created_at = ai_request.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    if created_at > datetime.now(timezone.utc) - timedelta(minutes=10):
+        raise HTTPException(status_code=409, detail="AI request is not old enough for recovery")
+
+    reservation = None
+    if ai_request.reservation_id is not None:
+        reservation = db.scalar(
+            select(CreditReservation)
+            .where(
+                CreditReservation.id == ai_request.reservation_id,
+                CreditReservation.user_id == ai_request.user_id,
+            )
+            .with_for_update()
+        )
+    else:
+        reservation = db.scalar(
+            select(CreditReservation)
+            .where(
+                CreditReservation.user_id == ai_request.user_id,
+                CreditReservation.idempotency_key == f"ai-request-{ai_request.id}",
+            )
+            .with_for_update()
+        )
+
+    evidence = payload.evidence_reference.strip()
+    ai_request.reconciliation_evidence = evidence
+    ai_request.reconciled_by_user_id = admin.id
+    ai_request.completed_at = datetime.now(timezone.utc)
+
+    if reservation is None:
+        # The execution path reserves and commits credits before contacting a
+        # provider. No reservation therefore means no paid provider call began.
+        ai_request.status = "failed"
+        ai_request.error_code = "interrupted_before_reservation"
+    elif reservation.status == "reserved":
+        ai_request.reservation_id = reservation.id
+        ai_request.status = "reconciliation_required"
+        ai_request.error_code = "interrupted_after_reservation"
+        # Keep the hold intact until a human checks provider-side usage.
+    elif reservation.status in {"captured", "released"}:
+        ai_request.reservation_id = reservation.id
+        ai_request.status = "failed"
+        ai_request.credits_charged = reservation.captured_amount
+        ai_request.error_code = "interrupted_after_settlement"
+    else:
+        raise HTTPException(status_code=409, detail="Reservation has an unsupported state")
+
+    db.commit()
+    db.refresh(ai_request)
+    return ai_request
 
 
 @router.post(
