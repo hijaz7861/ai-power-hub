@@ -20,7 +20,7 @@ from backend.app.services.credits import (
     reserve_credits,
     settle_reservation,
 )
-from backend.app.services.pricing import PricingInputs, calculate_retail_price
+from backend.app.services.pricing import calculate_token_retail_charge
 from backend.app.services.provider_adapters import (
     ChatMessage,
     OpenAICompatibleChatAdapter,
@@ -35,18 +35,15 @@ PROVIDER_ENDPOINTS = {
 }
 
 
-def _ceil_rate(rate_per_1k: int, tokens: int) -> int:
-    return (rate_per_1k * tokens + 999) // 1000
-
-
 def _retail_charge(input_rate: int, output_rate: int, prompt_tokens: int,
                    completion_tokens: int, target_margin_bps: int = 1500) -> int:
-    wholesale = _ceil_rate(input_rate, prompt_tokens) + _ceil_rate(output_rate, completion_tokens)
-    if wholesale == 0:
-        return 0
-    return calculate_retail_price(PricingInputs(
-        provider_cost=wholesale, target_margin_bps=target_margin_bps
-    )).retail_price
+    return calculate_token_retail_charge(
+        input_rate_minor_units=input_rate,
+        output_rate_minor_units=output_rate,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        target_margin_bps=target_margin_bps,
+    )
 
 
 def _find_verified_rate_pair(db: Session, provider: str, model: str) -> tuple[int, int] | None:
