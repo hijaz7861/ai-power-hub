@@ -133,7 +133,10 @@ export default function AuthPanel() {
           <div><strong>{account.user.email}</strong><small>Signed in · secure server-managed session</small></div>
         </div>
         <div className="account-credit"><span>Available credits</span><strong>{account.balance.balance.toLocaleString()}</strong><small>≈ PKR {(account.balance.balance / 100).toFixed(2)}</small></div>
-        <button className="account-button secondary" onClick={logout} disabled={busy}>Sign out</button>
+        <div className="account-actions">
+          <a className="account-button secondary" href="/api/account/export">Download my data</a>
+          <button className="account-button secondary" onClick={logout} disabled={busy}>Sign out</button>
+        </div>
         <form className="topup-form" onSubmit={startTopup}>
           <label>Top up credits (PKR)
             <input type="number" min="100" max="100000" step="1" value={topupAmount} onChange={(event) => setTopupAmount(event.target.value)} />
