@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.api.auth import require_admin
 from backend.app.core.database import get_db
-from backend.app.models import AIRequest, ConversationMessage, CreditReservation, PaymentWebhookEvent, SupplierOffer, User
+from backend.app.models import AIRequest, ConversationMessage, CreditReservation, PaymentOrder, PaymentWebhookEvent, SupplierOffer, User
 from backend.app.schemas import (
     SupplierOfferCreate,
     SupplierOfferResponse,
@@ -15,6 +15,7 @@ from backend.app.schemas import (
     AdminCreditGrantRequest,
     AdminCreditGrantResponse,
     PaymentWebhookEventResponse,
+    PaymentOrderAdminResponse,
     AIRequestAdminResponse,
     AIRequestReconcileRequest,
     AIRequestReleaseRequest,
@@ -144,6 +145,19 @@ def list_payment_events(
         select(PaymentWebhookEvent).order_by(PaymentWebhookEvent.id.desc()).limit(limit)
     ).all())
 
+
+
+@router.get("/payment-orders", response_model=list[PaymentOrderAdminResponse])
+def list_payment_orders(
+    limit: int = 50,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[PaymentOrder]:
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 100")
+    return list(db.scalars(
+        select(PaymentOrder).order_by(PaymentOrder.id.desc()).limit(limit)
+    ).all())
 
 
 @router.get("/ai-requests", response_model=list[AIRequestAdminResponse])
