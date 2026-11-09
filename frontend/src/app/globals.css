@@ -194,3 +194,7 @@ h1{font:700 27px Manrope,sans-serif;margin:7px 0 0}
 .chat-delete-button{white-space:nowrap}
 .admin-payment-orders{margin-top:0}
 @media(max-width:520px){.chat-history-controls{align-items:stretch;flex-direction:column}.chat-delete-button{width:100%}}
+
+
+.account-actions{display:flex;gap:8px;flex-wrap:wrap}
+.account-actions .account-button{flex:1;text-align:center;text-decoration:none}
