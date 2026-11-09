@@ -1,61 +1,54 @@
 # AI POWER HUB — PROJECT STATUS
 
-Last updated: 2026-11-08
+Last updated: 2026-11-09
 
-## Current milestone: Safepay sandbox top-up and verified credit settlement foundation
+## Current milestone: metered AI execution foundation
 
 ### Implemented in feat/backend-foundation
-- [x] FastAPI application, health/readiness endpoints and SQLAlchemy persistence
-- [x] Alembic migrations through 0005_payment_orders
+- [x] FastAPI, SQLAlchemy and Alembic migrations through 0007
 - [x] Registration/login, scrypt password hashing, short-lived bearer tokens and customer/admin roles
 - [x] CLI-only bootstrap for an existing administrator account
-- [x] Idempotent credit debit, admin manual grant with actor audit, and current-user-scoped ledger history
-- [x] Integer-safe wholesale-to-retail pricing engine and admin supplier offer registry
-- [x] HTTPS-only OpenAI-compatible adapter with mock tests; no live AI supplier call claimed
-- [x] Next.js registration/login/logout using HttpOnly SameSite=Strict session cookie
-- [x] Customer account panel, credit balance, recent ledger activity and top-up form
-- [x] Safepay Express Checkout adapter using server-side API/secret keys and fixed sandbox/production hosts
-- [x] PKR top-up orders with 100 PKR minimum, 100,000 PKR maximum and per-user idempotency
-- [x] 1 credit = 1 paisa; a successful PKR 100 top-up grants 10,000 credits
-- [x] Checkout return/cancel pages and owner-scoped payment status API
-- [x] Raw-body HMAC-SHA512 webhook verification, merchant identity check and event replay/collision protection
-- [x] Payment settlement only after exact order reference/tracker, amount, currency and TRACKER_ENDED state match
-- [x] Duplicate success events cannot grant credits twice; amount mismatches are recorded without crediting
-- [x] Refund events are flagged for manual review; no automatic credit reversal is performed
-- [x] Admin-only payment event inbox and minimal event metadata storage
-- [x] Documentation for provider setup, supplier agreements, admin bootstrap and payment lifecycle
+- [x] Idempotent credit debit, admin manual grant with actor audit, and customer-scoped credit ledger
+- [x] Integer-safe wholesale-to-retail pricing engine and admin supplier-offer registry
+- [x] HTTPS-only OpenAI-compatible adapter with mocked HTTP tests
+- [x] Supplier model rates require matching active, PKR-denominated, contract-verified input/output offers
+- [x] Next.js customer registration/login/logout using HttpOnly SameSite=Strict session cookies
+- [x] Safepay PKR top-up and signed-webhook settlement foundation
+- [x] Credit reservation before metered AI calls, with idempotent reserve/capture/release
+- [x] Authenticated chat completion API for OpenAI and Mistral-compatible endpoints
+- [x] Actual provider token usage is priced through the retail pricing engine
+- [x] Provider failures release the full hold; unused reservation is returned after settlement
+- [x] Completed AI responses are persisted so client retries do not issue duplicate paid calls
+- [x] Missing provider usage or usage above the authorized hold is marked reconciliation_required; funds remain held
+- [x] Provider catalogue distinguishes available OpenAI/Mistral adapter code from integrations not implemented
 
-### Latest verified GitHub Actions
-- [x] Backend CI #266: 55 tests passed; Alembic migrations 0001 through 0005 passed
-- [x] Frontend CI #100: TypeScript type check and Next.js production build passed
+### Latest verification
+- [x] Backend CI #279 passed; migration 0006 and its backend test suite passed
+- [ ] Metered-chat changes and migration 0007: CI verification pending
+- [ ] Latest frontend CI #105: confirm final production-build conclusion
+- [ ] Real OpenAI/Mistral provider calls and cost reconciliation
 - [ ] Real Safepay sandbox transaction and signed webhook delivery
-- [ ] Browser-based end-to-end test of register, login, checkout return and balance refresh
+- [ ] Browser end-to-end test of registration, login, checkout return and chat
 - [ ] Termux-native install and runtime confirmed
 
 ### Remaining engineering milestones
-- [ ] Safepay sandbox merchant account, API key, secret key, webhook secret and public HTTPS callback configuration
-- [ ] Verify payment outcome against Safepay reporter API and periodic provider reconciliation
-- [ ] Refund, partial refund, chargeback and dispute state machine with safe credit reversal policy
-- [ ] Payment receipts and admin reconciliation dashboard
-- [ ] Persisted retail price policies, service catalogue and metered AI request orchestration
-- [ ] Credit reserve/capture/refund for actual AI usage, with provider token usage and cost reconciliation
-- [ ] Live AI supplier credentials, model allowlists, live calls and resale permissions
-- [ ] PostgreSQL integration, backup/restore validation and production database rollout
+- [ ] Admin UI for model rate pairs and unresolved AI requests
+- [ ] Reconciliation workflow for missing/over-limit provider usage
+- [ ] Customer-facing chat UI and conversation persistence
+- [ ] Safepay reporter reconciliation, receipts, refunds, chargebacks and dispute policy
+- [ ] Subscription plans, renewals, cancellation and plan enforcement
+- [ ] PostgreSQL production rollout and backup/restore validation
 - [ ] Rate limiting, abuse controls, CSRF/origin protection and request-size/time limits
-- [ ] Admin management UI and audit-event search
-- [ ] Customer chat UI and conversation persistence
-- [ ] Subscription plans, renewals and cancellation state machine
-- [ ] Image/audio/video integrations
-- [ ] Opt-in contributor node agent, sandbox, quotas, proof-of-work verification and contributor payouts
+- [ ] Email verification, password reset and session/token lifecycle hardening
+- [ ] Anthropic/Gemini native adapters and image/audio/video integrations
+- [ ] Opt-in contributor node agent, sandbox, quotas, work verification and payout settlement
 - [ ] Security/privacy review, end-to-end tests, production deployment and monitoring
 
-## Payment and commercial limitations
-
-- The Safepay integration is implemented and mock-tested only. No merchant credentials or live sandbox payment have been supplied or used.
-- Configure SAFEPAY_API_KEY, SAFEPAY_SECRET_KEY, SAFEPAY_WEBHOOK_SECRET, SAFEPAY_ENVIRONMENT=sandbox and PUBLIC_APP_URL on the backend only.
-- Configure the provider webhook URL as PUBLIC_APP_URL + /api/v1/webhooks/safepay. Use sandbox credentials and sandbox webhook secret first.
-- A successful browser redirect is not proof of payment. Only the signed, matching payment.succeeded event with TRACKER_ENDED and exact amount/currency can grant credits.
-- A payment refund event is recorded for review; credits are not automatically reversed until a dispute/refund policy is implemented.
-- Supplier contract_status=verified remains an administrator assertion based on an external signed agreement.
-- Provider adapters and CI passing do not establish live commercial rights or production readiness.
-- No production-readiness or revenue-generation claim is made.
+## Operational and commercial limitations
+- OpenAI/Mistral chat calls are implemented but have not been verified with live provider credentials.
+- Chat requires server-side provider credentials and two active, PKR-denominated, contract-verified supplier offers per model.
+- contract_status=verified is an administrator assertion based on an external signed agreement; the software does not independently verify resale rights.
+- If provider usage is missing or exceeds the authorized reservation, funds remain held for reconciliation. An admin reconciliation UI is not yet implemented.
+- Safepay is mock-tested only; no merchant credentials or live sandbox payment have been supplied.
+- No production deployment, live commercial service or revenue-generation claim is made.
+- Keep PR #1 Draft/Open until review, security and operational gates are completed.
