@@ -1,4 +1,5 @@
 from functools import lru_cache
+import ipaddress
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -36,6 +37,13 @@ class Settings(BaseSettings):
                 raise RuntimeError("PUBLIC_APP_URL must be a public HTTPS URL in production")
             if not self.redis_url.startswith(("redis://", "rediss://")):
                 raise RuntimeError("A Redis REDIS_URL is required for distributed rate limiting in production")
+            if not self.trusted_proxy_ips.strip():
+                raise RuntimeError("TRUSTED_PROXY_IPS must identify the frontend proxy in production")
+            for proxy_range in self.trusted_proxy_ips.split(","):
+                try:
+                    ipaddress.ip_network(proxy_range.strip(), strict=False)
+                except ValueError:
+                    raise RuntimeError("TRUSTED_PROXY_IPS contains an invalid IP or CIDR") from None
 
 @lru_cache
 def get_settings() -> Settings:
