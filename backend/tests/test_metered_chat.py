@@ -169,3 +169,18 @@ def test_missing_provider_usage_keeps_reservation_for_reconciliation(
         assert request.error_code == "provider_usage_missing"
     finally:
         db.close()
+
+
+def test_public_model_catalogue_only_lists_complete_verified_rate_pairs(
+    client, test_db, chat_settings
+):
+    setup_chat_account(test_db)
+    response = client.get("/api/v1/chat/models")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["count"] == 1
+    assert payload["items"] == [{
+        "provider": "openai",
+        "model": "test-model",
+        "credential_configured": True,
+    }]
