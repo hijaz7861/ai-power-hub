@@ -82,9 +82,9 @@ async def receive_safepay_webhook(
     if tracker is not None and (not isinstance(tracker, str) or len(tracker) > 128):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid tracker token")
 
-    amount = data.get("amount")
+    amount = data.get("refund_amount") if event_type == "payment.refunded" else data.get("amount")
     if amount is None and event_type == "payment.refunded":
-        amount = data.get("refund_amount")
+        amount = data.get("amount")
     if amount is not None and (isinstance(amount, bool) or not isinstance(amount, int) or amount < 0):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid payment amount")
 
@@ -142,7 +142,7 @@ async def receive_safepay_webhook(
                 reference_matches = order_reference in (None, matched_order.reference)
                 if not (tracker_matches and amount_matches and currency_matches and state_matches and reference_matches):
                     record.processing_status = "mismatch"
-                elif matched_order.status == "succeeded":
+                elif matched_order.paid_at is not None or matched_order.status in {"succeeded", "partially_refunded", "refunded"}:
                     record.processing_status = "duplicate_payment_event"
                 else:
                     account = db.scalar(
@@ -168,7 +168,61 @@ async def receive_safepay_webhook(
             elif event_type == "payment.failed":
                 record.processing_status = "failed_attempt"
             elif event_type == "payment.refunded":
-                record.processing_status = "refund_review"
+                # Safepay's payment.refunded payload reports refund_amount in PKR
+                # minor units and the tracker state distinguishes partial/full refunds.
+                # Require both identifiers and exact currency before touching credits.
+                refund_state_valid = provider_state in {"TRACKER_PARTIAL_REFUND", "TRACKER_REFUNDED"}
+                identifiers_match = (
+                    bool(tracker)
+                    and tracker == matched_order.provider_tracker
+                    and order_reference == matched_order.reference
+                )
+                amount_valid = amount is not None and amount > 0
+                currency_matches = currency == matched_order.currency
+                order_is_paid = matched_order.paid_at is not None
+                within_original_payment = (
+                    matched_order.refunded_amount_minor_units + (amount or 0)
+                    <= matched_order.amount_minor_units
+                )
+                if not (
+                    identifiers_match
+                    and amount_valid
+                    and currency_matches
+                    and refund_state_valid
+                    and order_is_paid
+                    and within_original_payment
+                ):
+                    record.processing_status = "refund_review"
+                else:
+                    account = db.scalar(
+                        select(CreditAccount)
+                        .where(CreditAccount.user_id == matched_order.user_id)
+                        .with_for_update()
+                    )
+                    if account is None:
+                        db.rollback()
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail="Payment account is unavailable",
+                        )
+                    # A refund reverses the purchased credits. If the customer
+                    # already spent them, the balance can become negative; further
+                    # paid usage remains blocked until the balance is replenished.
+                    account.balance -= amount
+                    matched_order.refunded_amount_minor_units += amount
+                    matched_order.status = (
+                        "refunded"
+                        if matched_order.refunded_amount_minor_units == matched_order.amount_minor_units
+                        else "partially_refunded"
+                    )
+                    db.add(CreditLedger(
+                        user_id=matched_order.user_id,
+                        amount=-amount,
+                        entry_type="refund",
+                        idempotency_key="safepay-refund-event:" + event_token,
+                        description="Verified Safepay refund credit reversal",
+                    ))
+                    record.processing_status = "processed_refund"
         else:
             record.processing_status = "unmatched"
 
