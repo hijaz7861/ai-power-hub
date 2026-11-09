@@ -194,3 +194,7 @@ class AIRequestReconcileRequest(BaseModel):
     prompt_tokens: int = Field(ge=0, le=10**9)
     completion_tokens: int = Field(ge=0, le=10**9)
     evidence_reference: str = Field(min_length=8, max_length=255)
+
+
+class AIRequestReleaseRequest(BaseModel):
+    evidence_reference: str = Field(min_length=8, max_length=255)
