@@ -167,3 +167,14 @@ h1{font:700 27px Manrope,sans-serif;margin:7px 0 0}
 .admin-reconcile-form label:nth-child(3),.admin-reconcile-form button{grid-column:1/-1}
 @media(max-width:900px){.admin-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.admin-console{padding:16px}.admin-heading{align-items:start;flex-direction:column}.admin-reconcile-form{grid-template-columns:1fr}.admin-reconcile-form label,.admin-reconcile-form button{grid-column:1/-1}.admin-offer-row{flex-direction:column}.admin-offer-row span:last-child{text-align:left}}
+
+
+.chat-conversation-select{display:grid;gap:7px;max-width:100%;color:var(--muted);font-size:11px}
+.chat-conversation-select select{width:100%;border:1px solid var(--line);background:#0b1321;color:var(--text);border-radius:9px;padding:10px 12px;font:inherit}
+.chat-history{display:grid;gap:10px;max-height:440px;overflow:auto;padding:2px}
+.chat-message{max-width:88%;padding:12px 14px;border-radius:12px;background:#142238;border:1px solid var(--line)}
+.chat-message.user{justify-self:end;background:#17332f;border-color:#315b59}
+.chat-message small{font-size:9px;letter-spacing:1px;color:#9ce6d8}
+.chat-message p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.75;margin:7px 0 0}
+.chat-message.assistant p{color:#e4ecf8}
+@media(max-width:600px){.chat-message{max-width:100%}.chat-heading{align-items:stretch}}
