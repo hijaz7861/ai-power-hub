@@ -1,3 +1,7 @@
+import pytest
+
+from backend.app.core.config import Settings
+
 def test_production_config_requires_trusted_proxy_cidr():
     settings = Settings(
         app_env="production",
