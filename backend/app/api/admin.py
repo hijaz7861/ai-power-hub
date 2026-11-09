@@ -173,11 +173,14 @@ def list_ai_requests(
         raise HTTPException(status_code=422, detail="Unsupported AI request status")
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=422, detail="limit must be between 1 and 100")
+    statement = select(AIRequest).where(AIRequest.status == request_status)
+    if request_status == "processing":
+        # Normal requests have a short provider timeout. Only expose old
+        # records to the manual interruption-recovery workflow.
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+        statement = statement.where(AIRequest.created_at <= cutoff)
     return list(db.scalars(
-        select(AIRequest)
-        .where(AIRequest.status == request_status)
-        .order_by(AIRequest.id.desc())
-        .limit(limit)
+        statement.order_by(AIRequest.id.desc()).limit(limit)
     ).all())
 
 
