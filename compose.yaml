@@ -13,6 +13,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      internal:
+        ipv4_address: 172.30.0.30
 
   redis:
     build:
@@ -28,6 +31,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      internal:
+        ipv4_address: 172.30.0.40
 
   backend:
     build:
@@ -42,6 +48,7 @@ services:
       DATABASE_URL: postgresql+psycopg://aiph:${POSTGRES_PASSWORD}@db:5432/aiph
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL in .env}
+      TRUSTED_PROXY_IPS: 172.30.0.10/32
     depends_on:
       db:
         condition: service_healthy
@@ -53,6 +60,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 45s
+    networks:
+      internal:
+        ipv4_address: 172.30.0.20
 
   frontend:
     build:
@@ -78,7 +88,17 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      internal:
+        ipv4_address: 172.30.0.10
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
