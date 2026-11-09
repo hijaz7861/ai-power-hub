@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { rejectCrossOriginMutation } from "../../../lib/csrf";
+import { rejectCrossOriginMutation } from "../../../../lib/csrf";
 
 const backend = process.env.API_BASE_URL || "http://127.0.0.1:8000";
 
