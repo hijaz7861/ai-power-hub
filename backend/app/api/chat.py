@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 import hashlib
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -357,6 +357,41 @@ def get_conversation(
         },
         "messages": messages,
     }
+
+
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(
+    conversation_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    conversation = db.scalar(select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.user_id == user.id,
+    ))
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    active_request = db.scalar(select(AIRequest.id).where(
+        AIRequest.conversation_id == conversation.id,
+        AIRequest.status == "processing",
+    ).limit(1))
+    if active_request is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This conversation has an AI request in progress; try again after it finishes",
+        )
+
+    # Keep financial/audit request rows, but erase the conversation text.
+    db.execute(update(AIRequest).where(
+        AIRequest.conversation_id == conversation.id
+    ).values(conversation_id=None, response_text=None))
+    db.execute(delete(ConversationMessage).where(
+        ConversationMessage.conversation_id == conversation.id
+    ))
+    db.delete(conversation)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/models")
