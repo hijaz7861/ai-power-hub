@@ -244,3 +244,12 @@ class PaymentOrderAdminResponse(BaseModel):
 
 class AIRequestRecoveryRequest(BaseModel):
     evidence_reference: str = Field(min_length=8, max_length=255)
+
+
+class CloseAccountRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
+class CloseAccountResponse(BaseModel):
+    status: str
+    message: str
