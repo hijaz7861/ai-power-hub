@@ -102,5 +102,38 @@ def test_account_closure_erases_chat_and_anonymizes_identity_but_keeps_financial
     ).status_code == 401
 
 
-def test_account_closure_requires_correct_password(client):
-    user_id, token = _create_customer(client.app.dependency_overrides[next(iter(client.app.dependency_overrides))].__closure__[0].cell_contents if False else None)
+def test_account_closure_requires_correct_password(client, test_db):
+    user_id, token = _create_customer(test_db)
+    response = client.post(
+        "/api/v1/account/close",
+        json={"password": "incorrect-password"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+    with test_db() as db:
+        assert db.get(User, user_id).is_active is True
+
+
+def test_account_closure_refuses_unsettled_credit_balance(client, test_db):
+    user_id, token = _create_customer(test_db, balance=500)
+    response = client.post(
+        "/api/v1/account/close",
+        json={"password": "a-long-test-password"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 409
+    assert "credit balance" in response.json()["detail"]
+    with test_db() as db:
+        assert db.get(User, user_id).is_active is True
+
+
+def test_administrator_must_transfer_role_before_closing_account(client, test_db):
+    user_id, token = _create_customer(test_db, role="admin")
+    response = client.post(
+        "/api/v1/account/close",
+        json={"password": "a-long-test-password"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 409
+    with test_db() as db:
+        assert db.get(User, user_id).is_active is True
