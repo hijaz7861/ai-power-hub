@@ -153,6 +153,36 @@ export default function AdminConsole() {
     return () => { active = false; };
   }, [refresh]);
 
+  useEffect(() => {
+    let active = true;
+    const refreshRole = async () => {
+      try {
+        const response = await fetch("/api/account", { cache: "no-store" });
+        if (!response.ok) {
+          if (active) setIsAdmin(false);
+          return;
+        }
+        const account = await response.json();
+        const allowed = account?.user?.role === "admin";
+        if (!active) return;
+        setIsAdmin(allowed);
+        if (allowed) {
+          try { await refresh(); }
+          catch (cause) {
+            if (active) setError(cause instanceof Error ? cause.message : "Admin data unavailable");
+          }
+        }
+      } catch {
+        if (active) setIsAdmin(false);
+      }
+    };
+    window.addEventListener("aiph:auth-changed", refreshRole);
+    return () => {
+      active = false;
+      window.removeEventListener("aiph:auth-changed", refreshRole);
+    };
+  }, [refresh]);
+
   async function createOffer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cost = Number(wholesaleCost);
