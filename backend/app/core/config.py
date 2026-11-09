@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     safepay_secret_key: str = ""
     safepay_environment: str = "sandbox"
     public_app_url: str = ""
+    redis_url: str = ""
 
     def validate_runtime(self) -> None:
         if self.safepay_environment not in {"sandbox", "production"}:
@@ -32,6 +33,8 @@ class Settings(BaseSettings):
                 raise RuntimeError("A PostgreSQL DATABASE_URL is required in production")
             if not self.public_app_url.startswith("https://"):
                 raise RuntimeError("PUBLIC_APP_URL must be a public HTTPS URL in production")
+            if not self.redis_url.startswith(("redis://", "rediss://")):
+                raise RuntimeError("A Redis REDIS_URL is required for distributed rate limiting in production")
 
 @lru_cache
 def get_settings() -> Settings:
