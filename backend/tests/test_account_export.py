@@ -1,7 +1,7 @@
 from sqlalchemy import select
 
 from backend.app.core.security import create_access_token
-from backend.app.models import Conversation, ConversationMessage, CreditAccount, CreditLedger, User
+from backend.app.models import AIRequest, Conversation, ConversationMessage, CreditAccount, CreditLedger, User
 
 
 def test_customer_can_export_owned_profile_billing_and_conversation_data(client, test_db):
@@ -23,8 +23,21 @@ def test_customer_can_export_owned_profile_billing_and_conversation_data(client,
         conversation = Conversation(user_id=user.id, title="Export this chat")
         db.add(conversation)
         db.flush()
+        request = AIRequest(
+            user_id=user.id,
+            idempotency_key="export-request-001",
+            request_hash="e" * 64,
+            provider="openai",
+            model="test-model",
+            status="completed",
+            conversation_id=conversation.id,
+            response_text="Exported assistant answer",
+        )
+        db.add(request)
+        db.flush()
         db.add(ConversationMessage(
             conversation_id=conversation.id,
+            request_id=request.id,
             role="user",
             content="My private exportable prompt",
         ))
