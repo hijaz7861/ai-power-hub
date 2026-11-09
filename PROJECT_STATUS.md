@@ -5,7 +5,7 @@ Last updated: 2026-11-09
 ## Current milestone: prepaid multi-turn AI, payments, recovery and customer privacy
 
 ### Implemented in feat/backend-foundation
-- [x] FastAPI, SQLAlchemy and Alembic migrations through 0010
+- [x] FastAPI, SQLAlchemy and Alembic migrations through 0011
 - [x] Registration/login, scrypt password hashing, short-lived bearer tokens and customer/admin roles
 - [x] CLI-only bootstrap for an existing administrator account
 - [x] Idempotent credit grants/debits, admin actor audit and customer-scoped credit ledger
@@ -15,7 +15,7 @@ Last updated: 2026-11-09
 - [x] Same-origin validation for cookie-authenticated login, registration, logout, AI, payment, admin and conversation-delete mutations
 - [x] Production frontend requires explicit APP_ORIGIN for same-origin mutation checks
 - [x] Browser security headers: nosniff, frame denial, referrer policy, permissions policy, production HSTS and no-store API responses
-- [x] Production backend rejects SQLite and requires PostgreSQL, a strong SECRET_KEY, DEBUG=false and public HTTPS PUBLIC_APP_URL
+- [x] Production backend rejects SQLite and requires PostgreSQL, Redis, a strong SECRET_KEY, DEBUG=false and public HTTPS PUBLIC_APP_URL
 - [x] Sign-in/sign-out events refresh chat history and role-gated admin workspace
 - [x] Safepay PKR top-up and signed-webhook settlement foundation
 - [x] Idempotent payment success settlement and duplicate success protection, including after a refund
@@ -31,6 +31,9 @@ Last updated: 2026-11-09
 - [x] Customer can delete an owned conversation; stored messages, cached responses and request-content fingerprints are erased while financial/audit rows remain
 - [x] Conversation deletion is blocked while an AI request is processing
 - [x] Authenticated account export endpoint and customer-facing JSON download for profile, credit ledger, payment orders, AI usage and stored conversations
+- [x] Password-confirmed account closure, login revocation, identity anonymization and chat-content erasure; financial records retained
+- [x] Account closure refuses non-zero credit balances, pending payments, active AI requests and unsettled credit reservations
+- [x] Redis-backed distributed rate limits for login, registration, chat, top-ups and account closure; development-only in-memory fallback
 - [x] Actual provider token usage is priced through the integer-safe retail pricing engine
 - [x] Provider failures release the full hold; unused reservation is returned after settlement
 - [x] Completed AI responses are persisted so client retries do not issue duplicate paid calls
@@ -40,24 +43,24 @@ Last updated: 2026-11-09
 - [x] Recovery links orphaned reservations by idempotency key; reserved funds remain held for human provider-usage reconciliation
 - [x] Recovery never auto-releases a hold when a provider may have completed a billable request
 - [x] Admin Console UI for supplier rates, contract attestation, AI reconciliation/recovery, exceptional hold release, payment orders/refunds and webhook audit
-- [x] PostgreSQL 16 CI migration round-trip: upgrade 0001–0010, downgrade to base, then re-upgrade to head
+- [x] PostgreSQL 16 CI migration round-trip: upgrade 0001–0011, downgrade to base, then re-upgrade to head
 - [x] Provider catalogue distinguishes available OpenAI/Mistral adapter code from integrations not implemented
 
 ### Latest verified GitHub Actions
-- [x] Backend CI #527: 87 tests passed; SQLite test migration validation passed
-- [x] PostgreSQL migration job in Backend CI #527: PostgreSQL 16 upgrade, downgrade and re-upgrade passed
-- [x] Frontend CI #278: TypeScript type check and Next.js production build passed
+- [x] Backend CI #564: 96 tests passed; SQLite migration validation passed
+- [x] PostgreSQL migration job in Backend CI #564: PostgreSQL 16 upgrade, downgrade and re-upgrade passed
+- [x] Frontend CI #299: TypeScript type check and Next.js production build passed
 - [ ] Browser end-to-end test of registration, login, checkout, multi-turn chat, refund, export and deletion
 - [ ] Termux-native install and runtime confirmed
 
 ### Remaining engineering and operational gates
-- [ ] Account closure/deactivation and erasure policy, while retaining legally required financial/audit records
 - [ ] Safepay merchant-side reconciliation against provider tracker/report, refund execution, disputes and chargebacks
 - [ ] Real Safepay sandbox transaction and signed webhook delivery
 - [ ] Live OpenAI/Mistral provider calls and provider-side usage reconciliation
 - [ ] Subscription plans, renewals, cancellation and plan enforcement
 - [ ] PostgreSQL production rollout, backup/restore drills and connection-pool sizing
-- [ ] Rate limiting, abuse controls, request-size/time limits and centralized monitoring
+- [x] Route-specific rate limiting for authentication, chat, top-ups and account closure (Redis required in production)
+- [ ] Additional abuse controls, request-size/time limits and centralized monitoring
 - [ ] Email verification, password reset, token revocation/rotation and account recovery
 - [ ] Anthropic/Gemini native adapters and image/audio/video integrations
 - [ ] Opt-in contributor node agent, sandbox, quotas, work verification and payout settlement
@@ -71,7 +74,7 @@ Last updated: 2026-11-09
 - If provider usage is missing or exceeds the authorized reservation, funds remain held for reconciliation. Admin settlement/release requires external evidence and administrator attestation.
 - Safepay refund processing is based on signed webhook events and mocked CI tests; no merchant sandbox/live transaction has been executed.
 - A refund can create a negative credit balance when credits have already been spent. This is an internal credit reversal, not an automated refund payout to the payer's bank/card.
-- Production config fails closed unless PostgreSQL, strong SECRET_KEY, HTTPS PUBLIC_APP_URL and frontend APP_ORIGIN are configured. No production environment has yet been provisioned or deployed.
-- Account export is implemented; deletion from the app database does not control provider-side retention or replace a legally reviewed privacy policy.
+- Production config fails closed unless PostgreSQL, Redis, strong SECRET_KEY, HTTPS PUBLIC_APP_URL and frontend APP_ORIGIN are configured. No production environment has yet been provisioned or deployed. Redis is mandatory for distributed production rate limiting; the in-memory limiter is development-only.
+- Account export and account closure are implemented; closure anonymizes the login identity and erases app-stored chat content, but retains financial/audit metadata for reconciliation. It does not control provider-side retention or replace a legally reviewed privacy policy.
 - No production deployment, live commercial service or revenue-generation claim is made.
 - Keep PR #1 Draft/Open until live provider/payment checks, independent review and deployment gates are complete.
