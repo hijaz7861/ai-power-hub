@@ -35,7 +35,7 @@ export async function DELETE(
   const token = store.get("aiph_session")?.value;
   if (!token) return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
   const { conversationId } = await context.params;
-  if (!/^\\d+$/.test(conversationId)) {
+  if (!/^\d+$/.test(conversationId)) {
     return NextResponse.json({ detail: "Invalid conversation id" }, { status: 400 });
   }
   try {
