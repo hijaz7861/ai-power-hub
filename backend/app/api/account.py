@@ -1,21 +1,27 @@
-"""Customer-owned data export endpoint."""
+"""Customer data export and privacy-safe account closure endpoints."""
 
+from datetime import datetime, timezone
+import secrets
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from backend.app.api.auth import get_current_user
 from backend.app.core.database import get_db
+from backend.app.core.security import hash_password, verify_password
 from backend.app.models import (
     AIRequest,
     Conversation,
     ConversationMessage,
     CreditLedger,
+    CreditReservation,
     PaymentOrder,
     User,
 )
+from backend.app.schemas import CloseAccountRequest, CloseAccountResponse
 from backend.app.services.credits import get_balance
 
 router = APIRouter(prefix="/api/v1/account", tags=["account privacy"])
@@ -133,4 +139,82 @@ def export_account_data(
             "Cache-Control": "no-store",
             "Content-Disposition": 'attachment; filename="ai-power-hub-account-export.json"',
         },
+    )
+
+
+@router.post("/close", response_model=CloseAccountResponse)
+def close_account(
+    payload: CloseAccountRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CloseAccountResponse:
+    """Deactivate a customer account and erase stored chat content.
+
+    Financial ledger and payment reconciliation records are retained. Closure
+    is blocked while money, a payment, or a provider request remains unsettled.
+    """
+    if user.role == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Transfer administrator duties to another account before closing this account",
+        )
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Password confirmation failed")
+
+    if get_balance(db, user.id) != 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Settle your remaining credit balance with support before closing this account",
+        )
+
+    pending_payment = db.scalar(select(PaymentOrder.id).where(
+        PaymentOrder.user_id == user.id,
+        PaymentOrder.status == "pending",
+    ).limit(1))
+    if pending_payment is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A payment is still pending; wait for its final provider status before closing this account",
+        )
+
+    unsettled_reservation = db.scalar(select(CreditReservation.id).where(
+        CreditReservation.user_id == user.id,
+        CreditReservation.status == "reserved",
+    ).limit(1))
+    unsettled_request = db.scalar(select(AIRequest.id).where(
+        AIRequest.user_id == user.id,
+        AIRequest.status.in_(("processing", "reconciliation_required")),
+    ).limit(1))
+    if unsettled_reservation is not None or unsettled_request is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An AI request or credit reservation is unsettled; resolve it before closing this account",
+        )
+
+    conversations = list(db.scalars(
+        select(Conversation.id).where(Conversation.user_id == user.id)
+    ).all())
+    if conversations:
+        db.execute(update(AIRequest).where(
+            AIRequest.user_id == user.id
+        ).values(conversation_id=None, response_text=None, request_hash="0" * 64))
+        db.execute(delete(ConversationMessage).where(
+            ConversationMessage.conversation_id.in_(conversations)
+        ))
+        db.execute(delete(Conversation).where(
+            Conversation.id.in_(conversations)
+        ))
+
+    # Keep accounting rows for statutory/merchant reconciliation. Remove the
+    # account's login identity and stored conversational content.
+    user.email = f"closed+{user.id}@accounts.invalid"
+    user.password_hash = hash_password(secrets.token_urlsafe(48))
+    user.is_active = False
+    user.role = "customer"
+    user.closed_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return CloseAccountResponse(
+        status="closed",
+        message="Account access disabled and stored conversation content erased. Financial records are retained for reconciliation.",
     )
