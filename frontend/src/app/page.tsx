@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AuthPanel from "../components/auth-panel";
+import ChatPanel from "../components/chat-panel";
 
 type Provider = {
   id: string;
@@ -57,6 +58,7 @@ export default function HomePage() {
         </a>
         <div className="nav-label">WORKSPACE</div>
         <a className="nav-item active" href="#overview">Overview</a>
+        <a className="nav-item" href="#chat">AI Chat</a>
         <a className="nav-item" href="#providers">AI Providers</a>
         <a className="nav-item" href="#capabilities">Capabilities</a>
         <div className="sidebar-note">
@@ -72,6 +74,7 @@ export default function HomePage() {
           <div className={`status-pill ${apiStatus}`}><span className="status-dot" />{statusLabel}</div>
         </header>
         <AuthPanel />
+        <ChatPanel />
 
         <section className="hero" id="overview">
           <div className="hero-copy">
@@ -84,7 +87,7 @@ export default function HomePage() {
         </section>
 
         <section className="metrics" aria-label="Platform summary">
-          <article className="metric-card"><span className="metric-label">AI PROVIDERS CATALOGUED</span><strong>{providers.length || "—"}</strong><small>Metadata only · adapters pending</small></article>
+          <article className="metric-card"><span className="metric-label">AI PROVIDERS CATALOGUED</span><strong>{providers.length || "—"}</strong><small>Catalogue · model setup required</small></article>
           <article className="metric-card"><span className="metric-label">API STATUS</span><strong className={apiStatus === "online" ? "metric-good" : ""}>{apiStatus === "online" ? "Online" : apiStatus === "offline" ? "Offline" : "…"}</strong><small>Live health endpoint</small></article>
           <article className="metric-card"><span className="metric-label">ENTRY PLAN TARGET</span><strong>Rs. 100</strong><small>Proposed monthly starting price</small></article>
         </section>
@@ -97,7 +100,7 @@ export default function HomePage() {
               <article className="provider-card" key={provider.id}>
                 <div className="provider-icon">{provider.name.slice(0, 1)}</div>
                 <div className="provider-info"><strong>{provider.name}</strong><small>{provider.credential_configured ? "Credential detected" : "Credential not configured"}</small></div>
-                <span className="pending-tag">Adapter pending</span>
+                <span className="pending-tag">{provider.integration_status === "adapter_available_model_rate_required" ? "Adapter ready · rates required" : "Adapter pending"}</span>
               </article>
             )) : !providerError ? <div className="empty-state">Loading provider registry…</div> : null}
           </div>
