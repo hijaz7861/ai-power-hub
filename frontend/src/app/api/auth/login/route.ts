@@ -1,9 +1,12 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossOriginMutation } from "../../../../lib/csrf";
 
 const backend = process.env.API_BASE_URL || "http://127.0.0.1:8000";
 
 export async function POST(request: NextRequest) {
+  const rejected = rejectCrossOriginMutation(request);
+  if (rejected) return rejected;
   let body: unknown;
   try {
     body = await request.json();
