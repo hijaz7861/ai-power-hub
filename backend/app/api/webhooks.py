@@ -129,9 +129,13 @@ async def receive_safepay_webhook(
     matched_order = None
     if event_type in {"payment.succeeded", "payment.failed", "payment.refunded"}:
         if tracker:
-            matched_order = db.scalar(select(PaymentOrder).where(PaymentOrder.provider_tracker == tracker))
+            matched_order = db.scalar(
+                select(PaymentOrder).where(PaymentOrder.provider_tracker == tracker).with_for_update()
+            )
         if matched_order is None and order_reference:
-            matched_order = db.scalar(select(PaymentOrder).where(PaymentOrder.reference == order_reference))
+            matched_order = db.scalar(
+                select(PaymentOrder).where(PaymentOrder.reference == order_reference).with_for_update()
+            )
         if matched_order is not None:
             record.payment_order_id = matched_order.id
             if event_type == "payment.succeeded":
