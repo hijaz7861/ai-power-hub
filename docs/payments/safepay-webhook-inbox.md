@@ -94,7 +94,7 @@ application URL must be HTTPS.
 - No Safepay merchant account or credentials were supplied.
 - No live sandbox checkout or signed webhook delivery has been performed.
 - The provider reporter API is not yet polled for reconciliation.
-- Refunds, partial refunds, disputes and chargebacks are not automated.
+- Refund webhook handling and internal credit reversals are implemented but have only mocked-test coverage; live provider payloads have not been validated. External bank/card refund payouts, disputes and chargebacks are not automated.
 - Production onboarding, legal terms, MDR/fees, tax and settlement bank account
   must be confirmed with Safepay before launch.
 
