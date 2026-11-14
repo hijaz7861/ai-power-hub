@@ -1,0 +1,104 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aiph
+      POSTGRES_DB: aiph
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiph -d aiph"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      internal:
+        ipv4_address: 172.30.0.30
+
+  redis:
+    build:
+      context: .
+      dockerfile: ops/Redis.Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      internal:
+        ipv4_address: 172.30.0.40
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      DATABASE_URL: postgresql+psycopg://aiph:${POSTGRES_PASSWORD}@db:5432/aiph
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL in .env}
+      TRUSTED_PROXY_IPS: 172.30.0.10/32
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=4)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    networks:
+      internal:
+        ipv4_address: 172.30.0.20
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        API_BASE_URL: http://backend:8000
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://backend:8000
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in .env}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      internal:
+        ipv4_address: 172.30.0.10
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

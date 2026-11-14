@@ -1,0 +1,10 @@
+[project]
+name = "ai-power-hub"
+version = "0.1.0"
+description = "A modular multi-provider AI SaaS platform"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests"]
+addopts = "-ra"
