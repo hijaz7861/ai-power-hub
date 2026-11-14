@@ -47,20 +47,30 @@ The receiver:
 3. Verifies X-SFPY-SIGNATURE using HMAC-SHA512 over the exact raw body.
 4. Confirms the event merchant_api_key equals the configured merchant API key.
 5. Deduplicates event token and rejects token reuse with a different payload.
-6. Matches the provider tracker and metadata order reference to one pending order.
+6. Resolves an order by provider tracker first, then by metadata order
+   reference as a fallback. A successful payment still requires a matching
+   provider tracker; if an order reference is supplied, it must match exactly.
 7. Requires payment.succeeded, TRACKER_ENDED, exact expected amount and exact
    currency before crediting the account.
-8. Adds a payment ledger entry and marks the order succeeded in the same database
-   transaction. Repeated success events cannot grant the same order twice.
+8. Locks the matched payment-order row during settlement and refund processing,
+   then writes the account balance, ledger entry and order state in one database
+   transaction. PostgreSQL row locking serializes distinct webhook events for
+   the same order; duplicate event tokens are independently idempotent.
 
 Only minimal event metadata and a SHA-256 body digest are stored. Raw webhook
 payloads and customer email addresses are not persisted. Amount/currency/order
 mismatches are recorded without issuing credits.
 
 Failed payment events are recorded as failed attempts; they do not grant credits
-or prematurely mark an order terminal. Refund events are marked for manual review.
-No automatic credit reversal occurs until refund, partial-refund and chargeback
-policy is implemented.
+or prematurely mark an order terminal. Refund events require both the exact
+provider tracker and internal order reference, a paid order, matching currency,
+a positive refund amount and a provider refund state consistent with the
+cumulative refunded total. Verified partial/full refunds reverse purchased
+credits and write an idempotent refund ledger entry. If the customer has already
+spent those credits, the balance can become negative and further paid usage
+remains blocked until replenished. Invalid or inconsistent refund events are
+retained for manual review; this is an internal credit reversal, not a bank/card
+refund payout. Chargebacks and dispute workflows are not automated.
 
 ## Backend environment
 
